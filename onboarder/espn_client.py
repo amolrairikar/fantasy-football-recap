@@ -25,19 +25,19 @@ class ESPNClient:
     Attributes:
         league_id: The ID of the league being onboarded.
         latest_season: Most recent season the league was active.
-        espn_s2_cookie: Optional cookie value for espn_s2 cookie, required to fetch
+        s2: Optional cookie value for espn_s2 cookie, required to fetch
             private ESPN league data.
-        swid_cookie: Optional cookie value for SWID cookie, required to fetch
+        swid: Optional cookie value for SWID cookie, required to fetch
             private ESPN league data.
 
     Methods:
-        __init__(league_id, latest_season, espn_s2_cookie, swid_cookie): Constructor
-        get_league_seasons(latest_season): Gets list of all the seasons league has been active.
-        _build_url(season, view): Constructs full ESPN Fantasy Football API url for a certain data view.
+        __init__(league_id, latest_season, s2, swid): Constructor
+        _get_league_seasons(latest_season): Gets list of all the seasons league has been active.
+        _construct_request_url(base_url, data_type, week): Creates full ESPN Fantasy Football API request URL based on the type of data to fetch.
+        _build_all_request_urls(): Constructs all ESPN Fantasy Football API request URLs needed to fetch data for app.
         _build_cookies(): Creates cookies object for espn_s2 and SWID cookies if needed.
         fetch_all(): Fetch all URLs at once asynchronously with a limit of 10 active calls.
-        _fetch(): Fetch a single URL asynchronously.
-        _structure_results(results): Groups API responses by season for simpler processing.
+        _fetch(session, semaphore, url_data): Fetch a single URL asynchronously.
     """
 
     def __init__(

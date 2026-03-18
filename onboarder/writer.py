@@ -9,7 +9,7 @@ import boto3
 
 class DynamoWriter:
     """
-    Class for transforming raw API response data into format consumed by application.
+    Class for writing transformed league data to DynamoDB.
 
     Attributes:
         league_id: The ID of the league being onboarded.

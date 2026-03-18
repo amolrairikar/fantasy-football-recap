@@ -48,20 +48,20 @@ def process_api_results(
     results: Sequence[Union[dict[str, Any], BaseException]],
 ) -> list[dict[str, Any]]:
     """
-    Groups API responses by season for simpler processing.
+    Validates API responses and raises on any failure.
 
     Args:
-        results: Unprocessed API responses
+        results: Unprocessed API responses.
 
     Returns:
-        Processed API responses grouped by season.
+        Validated API responses with no None data values.
     """
     processed_results = []
     for result in results:
         if isinstance(result, BaseException):
             logger.error("Unhandled exception in gather: %s", result)
             raise RuntimeError(
-                f"Unexpected error occurred while fetching ESPN data: {result}"
+                f"Unexpected error occurred while fetching data: {result}"
             )
 
         season = result["season"]

@@ -25,9 +25,11 @@ class SleeperClient:
 
     Methods:
         __init__(league_id): Constructor.
-        get_league_seasons(): Gets list of all seasons the league has been active using
-            an exponential jump + binary search algorithm to efficiently find the oldest season
-            without iterating one by one.
+        _get_league_seasons(): Gets mapping of all seasons the league has been active and the corresponding league_ids.
+        _construct_request_url(league_id, data_type, week): Creates full Sleeper API request URL based on the type of data to fetch.
+        _build_all_request_urls(): Constructs all Sleeper API request URLs needed to fetch data for app.
+        fetch_all(): Fetch all URLs at once asynchronously with a limit of 10 active calls.
+        _fetch(session, semaphore, url_data): Fetch a single URL asynchronously.
     """
 
     def __init__(self, league_id: str):
