@@ -117,15 +117,6 @@ Migration notes:
 - [ ] E2E tests
 - [ ] No tests needed — explain: 
 
-**How to test manually:**
-```
-1. 
-2. 
-3. Expected result:
-```
-
-**Test coverage delta:** <!-- e.g. "Coverage: 74% → 77%" or "N/A" -->
-
 ---
 
 ## Security & Compliance
