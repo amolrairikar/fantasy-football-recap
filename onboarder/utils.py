@@ -46,7 +46,7 @@ logger = setup_logger()
 
 def process_api_results(
     results: Sequence[Union[dict[str, Any], BaseException]],
-) -> Sequence[dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Groups API responses by season for simpler processing.
 

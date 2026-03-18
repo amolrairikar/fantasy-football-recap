@@ -1,5 +1,5 @@
 import json
-from typing import Any, Sequence
+from typing import Any
 
 import aiohttp
 import asyncio
@@ -40,7 +40,13 @@ class ESPNClient:
         _structure_results(results): Groups API responses by season for simpler processing.
     """
 
-    def __init__(self, league_id: str, latest_season: str, s2=None, swid=None):
+    def __init__(
+        self,
+        league_id: str,
+        latest_season: str,
+        s2: str | None = None,
+        swid: str | None = None,
+    ):
         """Constructor."""
         if (
             bool(s2) ^ bool(swid)
@@ -156,7 +162,7 @@ class ESPNClient:
             cookies["SWID"] = self.swid
         return cookies if cookies else None
 
-    async def fetch_all(self) -> Sequence[dict[str, Any]]:
+    async def fetch_all(self) -> list[dict[str, Any]]:
         """
         Fetch all URLs at once asynchronously with a limit of 10 active calls.
 

@@ -26,7 +26,7 @@ class Transformer:
         """Constructor."""
         self.platform = platform
 
-    def transform(self, raw_data) -> dict[str, Any]:
+    def transform(self, raw_data: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Orchestrates the data transformation process.
 

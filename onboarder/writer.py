@@ -27,7 +27,7 @@ class DynamoWriter:
         self.platform = platform
         self.table = boto3.resource("dynamodb").Table(os.environ["DYNAMODB_TABLE_NAME"])
 
-    def write_all(self, views: dict[str, Any]):
+    def write_all(self, views: dict[str, Any]) -> None:
         """
         Writes each view to DynamoDB using the sort key and corresponding data from the view mapping.
 

@@ -49,7 +49,7 @@ class OnboardingService:
         self.transformer = Transformer(platform=self.platform)
         self.writer = DynamoWriter(league_id=self.league_id, platform=self.platform)
 
-    def run(self):
+    def run(self) -> None:
         """Runs the onboarding logic."""
         raw_data = asyncio.run(self.client.fetch_all())
         views = self.transformer.transform(raw_data=raw_data)

@@ -1,4 +1,4 @@
-from typing import Any, Sequence
+from typing import Any
 
 import aiohttp
 import asyncio
@@ -123,7 +123,7 @@ class SleeperClient:
                     urls.append((season, data_type, full_url))
         return urls
 
-    async def fetch_all(self) -> Sequence[dict[str, Any]]:
+    async def fetch_all(self) -> list[dict[str, Any]]:
         """
         Fetch all URLs at once asynchronously with a limit of 10 active calls.
 
