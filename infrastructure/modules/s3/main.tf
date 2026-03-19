@@ -92,48 +92,48 @@ resource "aws_s3_bucket_lifecycle_configuration" "secondary" {
   }
 }
 
-resource "aws_s3_bucket_replication_configuration" "primary_to_secondary" {
-  provider   = aws.primary
-  depends_on = [aws_s3_bucket_versioning.primary]
-  role       = var.replication_role_arn
-  bucket     = aws_s3_bucket.primary.id
+# resource "aws_s3_bucket_replication_configuration" "primary_to_secondary" {
+#   provider   = aws.primary
+#   depends_on = [aws_s3_bucket_versioning.primary, aws_s3_bucket_versioning.secondary]
+#   role       = var.replication_role_arn
+#   bucket     = aws_s3_bucket.primary.id
 
-  rule {
-    id     = "primary-to-secondary"
-    status = "Enabled"
+#   rule {
+#     id     = "primary-to-secondary"
+#     status = "Enabled"
 
-    destination {
-      bucket        = aws_s3_bucket.secondary.arn
-      storage_class = "STANDARD"
-    }
+#     destination {
+#       bucket        = aws_s3_bucket.secondary.arn
+#       storage_class = "STANDARD"
+#     }
 
-    delete_marker_replication {
-      status = "Enabled"
-    }
+#     delete_marker_replication {
+#       status = "Enabled"
+#     }
 
-    filter {}
-  }
-}
+#     filter {}
+#   }
+# }
 
-resource "aws_s3_bucket_replication_configuration" "secondary_to_primary" {
-  provider   = aws.secondary
-  depends_on = [aws_s3_bucket_versioning.secondary]
-  role       = var.replication_role_arn
-  bucket     = aws_s3_bucket.secondary.id
+# resource "aws_s3_bucket_replication_configuration" "secondary_to_primary" {
+#   provider   = aws.secondary
+#   depends_on = [aws_s3_bucket_versioning.secondary, aws_s3_bucket_versioning.primary]
+#   role       = var.replication_role_arn
+#   bucket     = aws_s3_bucket.secondary.id
 
-  rule {
-    id     = "secondary-to-primary"
-    status = "Enabled"
+#   rule {
+#     id     = "secondary-to-primary"
+#     status = "Enabled"
 
-    destination {
-      bucket        = aws_s3_bucket.primary.arn
-      storage_class = "STANDARD"
-    }
+#     destination {
+#       bucket        = aws_s3_bucket.primary.arn
+#       storage_class = "STANDARD"
+#     }
 
-    delete_marker_replication {
-      status = "Enabled"
-    }
+#     delete_marker_replication {
+#       status = "Enabled"
+#     }
 
-    filter {}
-  }
-}
+#     filter {}
+#   }
+# }
