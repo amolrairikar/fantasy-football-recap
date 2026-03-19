@@ -127,19 +127,55 @@ resource "aws_s3_bucket_replication_configuration" "secondary_to_primary" {
 }
 
 resource "aws_iam_role" "this" {
-  provider           = aws.primary
-  name               = var.replication_role_name
-  description        = var.replication_role_description
-  assume_role_policy = file(var.replication_role_trust_policy_file)
-  tags               = var.tags
+  name        = var.replication_role_name
+  description = var.replication_role_description
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "s3.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = var.tags
 }
 
 resource "aws_iam_role_policy" "this" {
   name   = "${var.replication_role_name}-policy"
   role   = aws_iam_role.this.id
-  policy = templatefile(var.replication_role_policy_file, {
-    account_id = var.account_id
-    region1    = local.primary_region
-    region2    = local.secondary_region
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowBucketLevelPermissions"
+        Effect = "Allow"
+        Action = [
+          "s3:GetReplicationConfiguration",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.bucket_prefix}-${local.primary_region}-${var.account_id}",
+          "arn:aws:s3:::${var.bucket_prefix}-${local.secondary_region}-${var.account_id}"
+        ]
+      },
+      {
+        Sid    = "AllowObjectLevelPermissions"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObjectVersion*",
+          "s3:Replicate*"
+        ]
+        Resource = [
+          "arn:aws:s3:::${var.bucket_prefix}-${local.primary_region}-${var.account_id}/*",
+          "arn:aws:s3:::${var.bucket_prefix}-${local.secondary_region}-${var.account_id}/*"
+        ]
+      }
+    ]
   })
 }

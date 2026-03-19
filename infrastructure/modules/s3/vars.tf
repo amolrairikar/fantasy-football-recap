@@ -49,13 +49,3 @@ variable "replication_role_description" {
   description = "The description for the IAM role to use for S3 replication"
   type        = string
 }
-
-variable "replication_role_trust_policy_file" {
-  description = "The relative path to the JSON file containing the trust (assume role) policy for the replication role"
-  type        = string
-}
-
-variable "replication_role_policy_file" {
-  description = "The relative path to the JSON file containing the permissions policy for the replication role"
-  type        = string
-}
