@@ -17,6 +17,11 @@ provider "aws" {
   region = "us-west-2"
 }
 
+locals {
+  primary_bucket_arn   = "arn:aws:s3:::fantasy-football-recap-${var.environment}-bucket-east-${var.account_id}"
+  secondary_bucket_arn = "arn:aws:s3:::fantasy-football-recap-${var.environment}-bucket-west-${var.account_id}"
+}
+
 module "dynamodb" {
   source = "../../modules/dynamodb"
 
@@ -65,20 +70,24 @@ module "s3-replication-role" {
           "s3:ListBucket"
         ]
         Resource = [
-          "arn:aws:s3:::fantasy-football-recap-${var.environment}-bucket-east-${var.account_id}",
-          "arn:aws:s3:::fantasy-football-recap-${var.environment}-bucket-west-${var.account_id}"
+          local.primary_bucket_arn,
+          local.secondary_bucket_arn
         ]
       },
       {
         Sid    = "AllowObjectLevelPermissions"
         Effect = "Allow"
         Action = [
-          "s3:GetObjectVersion*",
-          "s3:Replicate*"
+          "s3:GetObjectVersionForReplication",
+          "s3:GetObjectVersionAcl",
+          "s3:GetObjectVersionTagging",
+          "s3:ReplicateObject",
+          "s3:ReplicateDelete",
+          "s3:ReplicateTags"
         ]
         Resource = [
-          "arn:aws:s3:::fantasy-football-recap-${var.environment}-bucket-east-${var.account_id}/*",
-          "arn:aws:s3:::fantasy-football-recap-${var.environment}-bucket-west-${var.account_id}/*"
+          "${local.primary_bucket_arn}/*",
+          "${local.secondary_bucket_arn}/*"
         ]
       }
     ]
@@ -96,8 +105,8 @@ module "s3-bidirectional-replication" {
   source = "../../modules/s3"
 
   providers = {
-    aws.primary   = aws.primary
-    aws.secondary = aws.replica
+    aws.primary = aws.primary
+    aws.replica = aws.replica
   }
 
   bucket_prefix        = "fantasy-football-recap-${var.environment}-bucket"
