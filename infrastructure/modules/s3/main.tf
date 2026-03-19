@@ -93,11 +93,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "secondary" {
 }
 
 resource "aws_s3_bucket_replication_configuration" "primary_to_secondary" {
-  provider = aws.primary
-  depends_on = [aws_s3_bucket_versioning.primary]
-
-  role   = aws_iam_role.this.arn
-  bucket = aws_s3_bucket.primary.id
+  provider   = aws.primary
+  depends_on = [aws_iam_role_policy.this, aws_s3_bucket_versioning.primary]
+  role       = aws_iam_role.this.arn
+  bucket     = aws_s3_bucket.primary.id
 
   rule {
     id     = "primary-to-secondary"
@@ -111,11 +110,10 @@ resource "aws_s3_bucket_replication_configuration" "primary_to_secondary" {
 }
 
 resource "aws_s3_bucket_replication_configuration" "secondary_to_primary" {
-  provider = aws.secondary
-  depends_on = [aws_s3_bucket_versioning.secondary]
-
-  role   = aws_iam_role.this.arn
-  bucket = aws_s3_bucket.secondary.id
+  provider   = aws.secondary
+  depends_on = [aws_iam_role_policy.this, aws_s3_bucket_versioning.secondary]
+  role       = aws_iam_role.this.arn
+  bucket     = aws_s3_bucket.secondary.id
 
   rule {
     id     = "secondary-to-primary"
