@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      configuration_aliases = [ aws.primary, aws.secondary ]
+    }
+  }
+}
+
 locals {
   primary_region = element(split("-", var.primary_aws_region), 1)
   secondary_region = element(split("-", var.secondary_aws_region), 1)
@@ -87,7 +96,7 @@ resource "aws_s3_bucket_replication_configuration" "primary_to_secondary" {
   provider = aws.primary
   depends_on = [aws_s3_bucket_versioning.primary]
 
-  role   = var.replication_role_arn
+  role   = aws_iam_role.this.arn
   bucket = aws_s3_bucket.primary.id
 
   rule {

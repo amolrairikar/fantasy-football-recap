@@ -39,18 +39,24 @@ module "dynamodb" {
 }
 
 module "s3-bidirectional-replication" {
-  source                             = "../../modules/s3"
+  source = "../../modules/s3"
+
+  providers = {
+    aws.primary   = aws.primary
+    aws.secondary = aws.replica
+  }
+
   bucket_prefix                      = "fantasy-football-recap-${var.environment}-bucket"
   versioning_enabled                 = true  
   replication_role_name              = "fantasy-football-recap-s3-${var.environment}-replication-role"
   replication_role_description       = "IAM role for replicating objects between east & west dev S3 buckets."
   replication_role_trust_policy_file = "../../../iam/trust_policy.json"
   replication_role_policy_file       = "../../../iam/role_policy.json"
-  lifecycle_rules = {
+  lifecycle_rules = [{
     rule_name       = "expire-noncurrent-objects"
     prefix          = ""
     noncurrent_days = 7
-  }
+  }]
   tags = {
     environment = var.environment
     project     = "fantasy-football-recap"
