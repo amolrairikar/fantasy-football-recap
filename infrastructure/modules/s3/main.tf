@@ -14,7 +14,7 @@ locals {
 
 resource "aws_s3_bucket" "primary" {
   provider = aws.primary
-  bucket   = "${var.bucket_prefix}-${primary_region}-${var.account_id}"
+  bucket   = "${var.bucket_prefix}-${locals.primary_region}-${var.account_id}"
   tags     = var.tags
 }
 
@@ -54,7 +54,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "primary" {
 
 resource "aws_s3_bucket" "secondary" {
   provider = aws.secondary
-  bucket   = "${var.bucket_prefix}-${secondary_region}-${var.account_id}"
+  bucket   = "${var.bucket_prefix}-${locals.secondary_region}-${var.account_id}"
   tags     = var.tags
 }
 
