@@ -45,21 +45,15 @@ resource "aws_dynamodb_table" "global_table" {
   tags = var.tags
 }
 
-resource "aws_dynamodb_tag" "replica_tags" {
-  provider     = aws.replica
-  resource_arn = replace(aws_dynamodb_table.global_table.arn, data.aws_region.primary.name, var.replica_regions[0])
-  depends_on   = [aws_dynamodb_table.global_table]
-  
-  dynamic "tag" {
-    for_each = var.tags
-    content {
-      key   = tag.key
-      value = tag.value
-    }
-  }
-}
-
-# Helper to get the primary region name for the ARN replacement
 data "aws_region" "primary" {
   provider = aws.primary
+}
+
+resource "aws_dynamodb_tag" "replica_tags" {
+  provider     = aws.replica
+  for_each     = var.tags
+  resource_arn = replace(aws_dynamodb_table.global_table.arn, data.aws_region.primary.id, var.replica_regions[0])
+  key          = each.key
+  value        = each.value
+  depends_on   = [aws_dynamodb_table.global_table]
 }
