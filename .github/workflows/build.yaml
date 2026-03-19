@@ -67,6 +67,4 @@ jobs:
           terraform apply \
             -auto-approve \
             -var="environment=${{ env.ENVIRONMENT }}" \
-            -var="account_id=${{ secrets.AWS_ACCOUNT_ID }}" \
-            -var="primary_aws_region=us-east-1" \
-            -var="secondary_aws_region=us-west-2"
+            -var="account_id=${{ secrets.AWS_ACCOUNT_ID }}"

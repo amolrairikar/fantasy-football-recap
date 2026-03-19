@@ -47,6 +47,9 @@ module "s3-bidirectional-replication" {
   }
 
   bucket_prefix                      = "fantasy-football-recap-${var.environment}-bucket"
+  account_id                         = var.account_id
+  primary_aws_region                 = "us-east-1"
+  secondary_aws_region               = "us-west-2"
   versioning_enabled                 = true  
   replication_role_name              = "fantasy-football-recap-s3-${var.environment}-replication-role"
   replication_role_description       = "IAM role for replicating objects between east & west dev S3 buckets."
