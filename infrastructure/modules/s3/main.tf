@@ -53,13 +53,13 @@ resource "aws_s3_bucket_lifecycle_configuration" "primary" {
 }
 
 resource "aws_s3_bucket" "secondary" {
-  provider = aws.secondary
+  provider = aws.replica
   bucket   = "${var.bucket_prefix}-${local.secondary_region}-${var.account_id}"
   tags     = var.tags
 }
 
 resource "aws_s3_bucket_versioning" "secondary" {
-  provider = aws.secondary
+  provider = aws.replica
   bucket   = aws_s3_bucket.secondary.id
   versioning_configuration {
     status = "Enabled"
@@ -67,7 +67,7 @@ resource "aws_s3_bucket_versioning" "secondary" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "secondary" {
-  provider   = aws.secondary
+  provider   = aws.replica
   depends_on = [aws_s3_bucket_versioning.secondary]
   bucket     = aws_s3_bucket.secondary.id
 
@@ -116,7 +116,7 @@ resource "aws_s3_bucket_replication_configuration" "primary_to_secondary" {
 }
 
 resource "aws_s3_bucket_replication_configuration" "secondary_to_primary" {
-  provider   = aws.secondary
+  provider   = aws.replica
   depends_on = [aws_s3_bucket_versioning.secondary, aws_s3_bucket_versioning.primary]
   role       = var.replication_role_arn
   bucket     = aws_s3_bucket.secondary.id
