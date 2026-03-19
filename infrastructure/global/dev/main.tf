@@ -53,8 +53,8 @@ module "s3-bidirectional-replication" {
   versioning_enabled                 = true  
   replication_role_name              = "fantasy-football-recap-s3-${var.environment}-replication-role"
   replication_role_description       = "IAM role for replicating objects between east & west dev S3 buckets."
-  replication_role_trust_policy_file = "../../../iam/trust_policy.json"
-  replication_role_policy_file       = "../../../iam/role_policy.json"
+  replication_role_trust_policy_file = "../../../iam/dev/replication-role/trust_policy.json"
+  replication_role_policy_file       = "../../../iam/dev/replication-role/role_policy.json"
   lifecycle_rules = [{
     rule_name       = "expire-noncurrent-objects"
     prefix          = ""
