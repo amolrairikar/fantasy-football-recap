@@ -69,7 +69,8 @@ for SOURCE_DIR in "$@"; do
             --quiet \
             --requirement "$SOURCE_DIR/requirements.txt" \
             --target "$BUILD_DIR" \
-            --upgrade
+            --upgrade \
+            --no-cache-dir
     else
         echo "    No requirements.txt found, skipping dependency install."
     fi
