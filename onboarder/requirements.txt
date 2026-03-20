@@ -1,0 +1,6 @@
+aiohttp
+asyncio
+duckdb
+pandas
+pyyaml
+requests
