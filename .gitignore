@@ -7,7 +7,6 @@ terraform.tfstate.backup
 backend.hcl
 terraform.tfvars
 terraform.tfplan
-*.tfvars
 
 # Python files
 __pycache__
