@@ -169,4 +169,4 @@ jobs:
             -auto-approve \
             -var="environment=${{ env.ENVIRONMENT }}" \
             -var="aws_region=${{ matrix.region }}" \
-            -var="lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/onboarding-lambda-${{ env.ENVIRONMENT }}-role"
+            -var="lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/fantasy-football-recap-onboarding-lambda-${{ env.ENVIRONMENT }}-role"
