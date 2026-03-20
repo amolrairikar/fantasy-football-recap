@@ -26,31 +26,31 @@ resource "aws_s3_bucket_versioning" "primary" {
   }
 }
 
-# resource "aws_s3_bucket_lifecycle_configuration" "primary" {
-#   provider   = aws.primary
-#   depends_on = [aws_s3_bucket_versioning.primary]
-#   bucket     = aws_s3_bucket.primary.id
+resource "aws_s3_bucket_lifecycle_configuration" "primary" {
+  provider   = aws.primary
+  depends_on = [aws_s3_bucket_versioning.primary]
+  bucket     = aws_s3_bucket.primary.id
 
-#   dynamic "rule" {
-#     for_each = var.lifecycle_rules
-#     content {
-#       id     = rule.value.rule_name
-#       status = "Enabled"
+  dynamic "rule" {
+    for_each = var.lifecycle_rules
+    content {
+      id     = rule.value.rule_name
+      status = "Enabled"
 
-#       filter {
-#         prefix = rule.value.prefix
-#       }
+      filter {
+        prefix = rule.value.prefix
+      }
 
-#       noncurrent_version_expiration {
-#         noncurrent_days = rule.value.noncurrent_days
-#       }
+      noncurrent_version_expiration {
+        noncurrent_days = rule.value.noncurrent_days
+      }
 
-#       expiration {
-#         expired_object_delete_marker = true
-#       }
-#     }
-#   }
-# }
+      expiration {
+        expired_object_delete_marker = true
+      }
+    }
+  }
+}
 
 resource "aws_s3_bucket" "secondary" {
   provider = aws.replica
@@ -66,31 +66,31 @@ resource "aws_s3_bucket_versioning" "secondary" {
   }
 }
 
-# resource "aws_s3_bucket_lifecycle_configuration" "secondary" {
-#   provider   = aws.replica
-#   depends_on = [aws_s3_bucket_versioning.secondary]
-#   bucket     = aws_s3_bucket.secondary.id
+resource "aws_s3_bucket_lifecycle_configuration" "secondary" {
+  provider   = aws.replica
+  depends_on = [aws_s3_bucket_versioning.secondary]
+  bucket     = aws_s3_bucket.secondary.id
 
-#   dynamic "rule" {
-#     for_each = var.lifecycle_rules
-#     content {
-#       id     = rule.value.rule_name
-#       status = "Enabled"
+  dynamic "rule" {
+    for_each = var.lifecycle_rules
+    content {
+      id     = rule.value.rule_name
+      status = "Enabled"
 
-#       filter {
-#         prefix = rule.value.prefix
-#       }
+      filter {
+        prefix = rule.value.prefix
+      }
 
-#       noncurrent_version_expiration {
-#         noncurrent_days = rule.value.noncurrent_days
-#       }
+      noncurrent_version_expiration {
+        noncurrent_days = rule.value.noncurrent_days
+      }
 
-#       expiration {
-#         expired_object_delete_marker = true
-#       }
-#     }
-#   }
-# }
+      expiration {
+        expired_object_delete_marker = true
+      }
+    }
+  }
+}
 
 # resource "aws_s3_bucket_replication_configuration" "primary_to_secondary" {
 #   provider   = aws.primary
