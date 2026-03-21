@@ -20,13 +20,13 @@ PYTHON_VERSION="${2:-3.13}"
  
 if [[ -z "$PACKAGE_NAME" ]]; then
   echo "❌  Usage: $0 <package_name> [python_version]"
-  echo "   Example: $0 pandas 3.12"
+  echo "   Example: $0 pandas 3.13"
   exit 1
 fi
  
 # Derive a filesystem-safe name (e.g. "scikit-learn" → "scikit_learn")
 SAFE_NAME="${PACKAGE_NAME//-/_}"
-PYTHON_MINOR="python${PYTHON_VERSION}"          # e.g. python3.12
+PYTHON_MINOR="python${PYTHON_VERSION}"
 LAYER_DIR="lambda_layer_${SAFE_NAME}"
 SITE_PACKAGES_PATH="${LAYER_DIR}/python/lib/${PYTHON_MINOR}/site-packages"
 OUTPUT_ZIP="${SAFE_NAME}_lambda_layer.zip"
@@ -55,8 +55,6 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 # Clean any previous build artifacts
 rm -rf "${LAYER_DIR}" "${OUTPUT_ZIP}"
  
-# Lambda requires packages at:  python/lib/pythonX.Y/site-packages/
-# This makes `import <package>` work out of the box inside the function.
 echo ""
 echo "⬇️   Installing '${PACKAGE_NAME}' into layer directory…"
 mkdir -p "${SITE_PACKAGES_PATH}"
@@ -73,12 +71,55 @@ mkdir -p "${SITE_PACKAGES_PATH}"
  
 echo "✅  Installation complete."
  
+# ── Strip ─────────────────────────────────────────────────────────────────────
+echo ""
+echo "✂️   Stripping unnecessary files…"
+ 
+BEFORE=$(du -sh "${LAYER_DIR}" | cut -f1)
+ 
+# Compiled Python bytecode — Python regenerates these on first import
+find "${SITE_PACKAGES_PATH}" -type f -name "*.pyc" -delete
+find "${SITE_PACKAGES_PATH}" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+ 
+# Package metadata — not needed at runtime
+find "${SITE_PACKAGES_PATH}" -type d -name "*.dist-info" -exec rm -rf {} + 2>/dev/null || true
+find "${SITE_PACKAGES_PATH}" -type d -name "*.egg-info"  -exec rm -rf {} + 2>/dev/null || true
+ 
+# Tests bundled inside packages — never needed in Lambda
+find "${SITE_PACKAGES_PATH}" -type d -name "tests"   -exec rm -rf {} + 2>/dev/null || true
+find "${SITE_PACKAGES_PATH}" -type d -name "test"    -exec rm -rf {} + 2>/dev/null || true
+find "${SITE_PACKAGES_PATH}" -type d -name "testing" -exec rm -rf {} + 2>/dev/null || true
+ 
+# Documentation and examples bundled inside packages
+find "${SITE_PACKAGES_PATH}" -type d -name "doc"      -exec rm -rf {} + 2>/dev/null || true
+find "${SITE_PACKAGES_PATH}" -type d -name "docs"     -exec rm -rf {} + 2>/dev/null || true
+find "${SITE_PACKAGES_PATH}" -type d -name "examples" -exec rm -rf {} + 2>/dev/null || true
+ 
+# C/Fortran source files shipped alongside compiled extensions (pandas, numpy, etc.)
+find "${SITE_PACKAGES_PATH}" -type f -name "*.pyx"  -delete
+find "${SITE_PACKAGES_PATH}" -type f -name "*.pxd"  -delete
+find "${SITE_PACKAGES_PATH}" -type f -name "*.c"    -delete
+find "${SITE_PACKAGES_PATH}" -type f -name "*.h"    -delete
+ 
+# Static libraries — only needed at compile time, not runtime
+find "${SITE_PACKAGES_PATH}" -type f -name "*.a" -delete
+ 
+# Strip debug symbols from shared libraries — largest single win for numpy/pandas
+# (requires binutils; no-op if strip is unavailable)
+if command -v strip &>/dev/null; then
+  find "${SITE_PACKAGES_PATH}" -type f -name "*.so" \
+    | xargs -r strip --strip-debug 2>/dev/null || true
+fi
+ 
+AFTER=$(du -sh "${LAYER_DIR}" | cut -f1)
+echo "✅  Size before stripping: ${BEFORE}  →  after: ${AFTER}"
+ 
 # ── Zip ───────────────────────────────────────────────────────────────────────
 echo ""
 echo "🗜   Creating zip archive…"
 (
   cd "${LAYER_DIR}"
-  zip -r "../${OUTPUT_ZIP}" . -x "*.pyc" -x "*/__pycache__/*" -x "*.dist-info/*"
+  zip -r "../${OUTPUT_ZIP}" . -q
 )
  
 ZIP_SIZE=$(du -sh "${OUTPUT_ZIP}" | cut -f1)
