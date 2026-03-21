@@ -31,6 +31,10 @@ module "lambda" {
   s3_bucket            = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/onboarder-lambda.zip"
 
+  environment_variables = {
+    DYNAMODB_TABLE_NAME = "fantasy-football-recap-table-${var.environment}"
+  }
+
   tags = {
     environment = var.environment
     project     = "fantasy-football-recap"
