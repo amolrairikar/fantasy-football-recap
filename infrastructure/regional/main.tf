@@ -77,6 +77,7 @@ module "backend_api" {
   openapi_spec_path    = "${path.module}/../../docs/api/openapi_spec.yaml"
   stage_name           = "${var.environment}-${local.region}"
   lambda_function_name = split(":", module.api_lambda.lambda_arn)[6]
+  log_retention_days   = 7
   
   openapi_vars = {
     aws_region = var.aws_region
