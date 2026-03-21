@@ -1,5 +1,5 @@
 output "api_id" {
-  value = aws_api_gateway_rest_api.this.id
+  value = aws_apigatewayv2_api.this.id
 }
 
 output "invoke_url" {
@@ -7,5 +7,5 @@ output "invoke_url" {
 }
 
 output "execution_arn" {
-  value = aws_api_gateway_rest_api.this.execution_arn
+  value = aws_apigatewayv2_api.this.execution_arn
 }
