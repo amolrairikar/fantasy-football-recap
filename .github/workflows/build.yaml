@@ -175,6 +175,8 @@ jobs:
   live-dependency-tests:
     name: Live Dependency Tests
     runs-on: ubuntu-latest
+    # These tests should never run in prod, only dev
+    if: github.event_name == 'pull_request'
     needs:
       - set-env
       - deploy-regional
