@@ -14,6 +14,11 @@ variable "cors_allow_origins" {
   type        = list(string)
 }
 
+variable "lambda_function_name" {
+  description = "Name of the Lambda function handling API requests."
+  type        = string
+}
+
 variable "openapi_spec_path" {
   description = "The path to the OpenAPI YAML/JSON file"
   type        = string
