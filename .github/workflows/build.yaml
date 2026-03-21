@@ -105,25 +105,19 @@ jobs:
           S3_BUCKET: fantasy-football-recap-${{ env.ENVIRONMENT }}-bucket-${{ matrix.region == 'us-east-1' && 'east' || 'west' }}-${{ secrets.AWS_ACCOUNT_ID }}
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         run: |
-          for package in pandas duckdb; do
-            echo "── Building layer for: $package ──"
-            bash deployment_scripts/build_lambda_layer_zip.sh "$package" "3.13"
- 
-            safe_name="${package//-/_}"
-            zip_file="${safe_name}_lambda_layer.zip"
-            s3_key="lambda-code-artifacts/${zip_file}"
- 
-            echo "Uploading ${zip_file} to s3://${S3_BUCKET}/${s3_key}"
-            aws s3 cp "$zip_file" "s3://${S3_BUCKET}/${s3_key}"
- 
-            echo "Publishing layer version for ${package}"
-            aws lambda publish-layer-version \
-              --layer-name "${safe_name}-layer-${{ env.ENVIRONMENT }}" \
-              --content "S3Bucket=${S3_BUCKET},S3Key=${s3_key}" \
-              --compatible-runtimes python3.13 \
-              --compatible-architectures x86_64 \
-              --region ${{ matrix.region }}
-          done
+          bash deployment_scripts/create_lambda_layer.sh "pandas_duckdb" "3.13" pandas duckdb
+
+          zip_file="pandas_duckdb_lambda_layer.zip"
+          s3_key="lambda-code-artifacts/${zip_file}"
+
+          aws s3 cp "$zip_file" "s3://${S3_BUCKET}/${s3_key}"
+
+          aws lambda publish-layer-version \
+            --layer-name "pandas-duckdb-layer-${{ env.ENVIRONMENT }}" \
+            --content "S3Bucket=${S3_BUCKET},S3Key=${s3_key}" \
+            --compatible-runtimes python3.13 \
+            --compatible-architectures x86_64 \
+            --region ${{ matrix.region }}
 
   deploy-lambda-artifacts:
     name: Deploy Lambda Artifacts - ${{ needs.set-env.outputs.environment }}

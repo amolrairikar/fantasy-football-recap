@@ -13,12 +13,8 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 
-data "aws_lambda_layer_version" "duckdb_layer" {
-  layer_name = "duckdb-layer-${var.environment}"
-}
-
-data "aws_lambda_layer_version" "pandas_layer" {
-  layer_name = "pandas-layer-${var.environment}"
+data "aws_lambda_layer_version" "duckdb_pandas_layer" {
+  layer_name = "pandas-duckdb-layer-${var.environment}"
 }
 
 locals {
@@ -40,8 +36,7 @@ module "lambda" {
   s3_key               = "lambda-code-artifacts/onboarder-lambda.zip"
 
   layers = [
-    data.aws_lambda_layer_version.duckdb_layer.arn,
-    data.aws_lambda_layer_version.pandas_layer.arn
+    data.aws_lambda_layer_version.duckdb_pandas_layer.arn
   ]
 
   environment_variables = {
