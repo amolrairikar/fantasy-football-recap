@@ -13,10 +13,6 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {}
 
-data "aws_lambda_layer_version" "duckdb_pandas_layer" {
-  layer_name = "pandas-duckdb-layer-${var.environment}"
-}
-
 locals {
   region     = element(split("-", var.aws_region), 1)
   account_id = data.aws_caller_identity.current.account_id
@@ -34,10 +30,6 @@ module "lambda" {
   log_retention        = 7
   s3_bucket            = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/onboarder-lambda.zip"
-
-  layers = [
-    data.aws_lambda_layer_version.duckdb_pandas_layer.arn
-  ]
 
   environment_variables = {
     DYNAMODB_TABLE_NAME = "fantasy-football-recap-table-${var.environment}"
