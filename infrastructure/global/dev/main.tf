@@ -155,7 +155,10 @@ module "onboarding-lambda-role" {
         Action = [
           "logs:CreateLogGroup"
         ]
-        Resource = ["arn:aws:logs:region:${var.account_id}:*"]
+        Resource = [
+          "arn:aws:logs:us-east-1:${var.account_id}:*",
+          "arn:aws:logs:us-west-2:${var.account_id}:*"
+        ]
       },
       {
         Sid    = "CreateLogEvents"
@@ -165,8 +168,8 @@ module "onboarding-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:region:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-onboarder-${var.environment}-east:*",
-          "arn:aws:logs:region:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-onboarder-${var.environment}-west:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-onboarder-${var.environment}-east:*",
+          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-onboarder-${var.environment}-west:*"
         ]
       },
       {
