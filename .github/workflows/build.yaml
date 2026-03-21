@@ -103,25 +103,19 @@ jobs:
       - name: Make packaging script executable
         run: chmod +x deployment_scripts/build_lambda_zip.sh
 
-      - name: Discover Lambda directories
-        id: discover-lambda-dirs
-        run: |
-          dirs=$(find . \
-            -name "requirements.txt" \
-            -not -path "*/.git/*" \
-            -not -path "*/node_modules/*" \
-            -not -path "./requirements.txt" \
-            | xargs -I{} dirname {} \
-            | tr '\n' ' ' \
-            | xargs)
-          echo "dirs=$dirs" >> $GITHUB_OUTPUT
+      - name: Check for Lambda code changes
+        id: changed
+        uses: tj-actions/changed-files@v47
+        with:
+          files: "onboarder/**"
  
       - name: Package and upload Lambda functions
+        if: steps.changed.outputs.any_changed == 'true'
         env:
           S3_BUCKET: fantasy-football-recap-${{ env.ENVIRONMENT }}-bucket
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
         # NOTE: The script here handles us-east-1 and us-west-2
-        run: bash deployment_scripts/build_lambda_zip.sh ${{ steps.discover-lambda-dirs.outputs.dirs }}
+        run: bash deployment_scripts/build_lambda_zip.sh ./onboarder
 
   deploy-regional:
     name: Deploy Regional Infrastructure - ${{ needs.set-env.outputs.environment }} - ${{ matrix.region }}
