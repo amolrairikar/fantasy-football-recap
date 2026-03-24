@@ -39,21 +39,9 @@ resource "aws_dynamodb_table" "global_table" {
       point_in_time_recovery      = true
       deletion_protection_enabled = true
       consistency_mode            = "EVENTUAL"
+      propagate_tags              = true
     }
   }
 
   tags = var.tags
-}
-
-data "aws_region" "primary" {
-  provider = aws.primary
-}
-
-resource "aws_dynamodb_tag" "replica_tags" {
-  provider     = aws.replica
-  for_each     = var.tags
-  resource_arn = replace(aws_dynamodb_table.global_table.arn, data.aws_region.primary.id, var.replica_regions[0])
-  key          = each.key
-  value        = each.value
-  depends_on   = [aws_dynamodb_table.global_table]
 }
