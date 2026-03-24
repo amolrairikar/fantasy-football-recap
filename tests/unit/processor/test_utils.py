@@ -2,7 +2,7 @@ import json
 import logging
 from unittest.mock import patch
 
-from processor.utils import JsonFormatter, setup_logger
+from processor.logging_utils import JsonFormatter, setup_logger
 
 
 class TestJsonFormatter:
@@ -19,7 +19,7 @@ class TestJsonFormatter:
         )
         record.funcName = "my_function"
 
-        with patch("processor.utils.time.time", return_value=1000.0):
+        with patch("processor.logging_utils.time.time", return_value=1000.0):
             result = formatter.format(record)
 
         parsed = json.loads(result)

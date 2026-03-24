@@ -1,4 +1,4 @@
-from .utils import logger
+from logging_utils import logger
 
 
 def lambda_handler(event, context) -> dict[str, str | int]:
