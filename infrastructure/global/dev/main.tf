@@ -115,6 +115,8 @@ module "s3-bidirectional-replication" {
   secondary_aws_region = "us-west-2"
   versioning_enabled   = true  
   replication_role_arn = module.s3-replication-role.role_arn
+  primary_lambda       = "fantasy-football-recap-processor-${var.environment}-east"
+  secondary_lambda     = "fantasy-football-recap-processor-${var.environment}-west"
 
   lifecycle_rules = [{
     rule_name       = "expire-noncurrent-objects"
