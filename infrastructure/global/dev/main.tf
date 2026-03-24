@@ -118,11 +118,18 @@ module "s3-bidirectional-replication" {
   primary_lambda       = "fantasy-football-recap-processor-${var.environment}-east"
   secondary_lambda     = "fantasy-football-recap-processor-${var.environment}-west"
 
-  lifecycle_rules = [{
-    rule_name       = "expire-noncurrent-objects"
-    prefix          = "lambda-code-artifacts/"
-    noncurrent_days = 7
-  }]
+  lifecycle_rules = [
+    {
+      rule_name       = "expire-noncurrent-objects"
+      prefix          = "lambda-code-artifacts/"
+      noncurrent_days = 7
+    },
+    {
+      rule_name       = "expire-noncurrent-api-data"
+      prefix          = "raw-api-data/"
+      noncurrent_days = 7
+    }
+  ]
 
   tags = {
     environment = var.environment
