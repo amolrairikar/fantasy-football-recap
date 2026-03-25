@@ -22,26 +22,26 @@ locals {
   secondary_bucket_arn = "arn:aws:s3:::fantasy-football-recap-${var.environment}-bucket-west-${var.account_id}"
 }
 
-module "dynamodb" {
-  source = "../../modules/dynamodb"
+# module "dynamodb" {
+#   source = "../../modules/dynamodb"
 
-  providers = {
-    aws.primary = aws.primary
-    aws.replica = aws.replica
-  }
+#   providers = {
+#     aws.primary = aws.primary
+#     aws.replica = aws.replica
+#   }
 
-  table_name      = "fantasy-football-recap-table-${var.environment}"
-  hash_key        = "PK"
-  range_key       = "SK"
-  replica_regions = ["us-west-2"]
+#   table_name      = "fantasy-football-recap-table-${var.environment}"
+#   hash_key        = "PK"
+#   range_key       = "SK"
+#   replica_regions = ["us-west-2"]
   
-  tags = {
-    environment = var.environment
-    project     = "fantasy-football-recap"
-    component   = "database"
-    managed-by  = "terraform"
-  }
-}
+#   tags = {
+#     environment = var.environment
+#     project     = "fantasy-football-recap"
+#     component   = "database"
+#     managed-by  = "terraform"
+#   }
+# }
 
 module "s3-replication-role" {
   source = "../../modules/iam-role"
