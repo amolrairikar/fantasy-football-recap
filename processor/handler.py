@@ -4,7 +4,9 @@ from typing import Any
 import boto3
 import botocore.exceptions
 
+from dynamo_writer import DynamoWriter
 from logging_utils import logger
+from transformer import Transformer
 
 
 def read_s3_object(bucket: str, key: str) -> list[dict[str, Any]]:
@@ -56,20 +58,22 @@ def lambda_handler(event, context) -> dict[str, str | int]:
             "body": json.dumps({"status": "succeeded", "message": "no-op"}),
         }
 
-    # bucket = event["Records"][0]["s3"]["bucket"]["name"]
-    # key = event["Records"][0]["s3"]["object"]["key"]
-    # platform = key.split("/")[1]
-    # league_id = key.split("/")[2]
-    # raw_data = read_s3_object(bucket=bucket, key=key)
+    bucket = event["Records"][0]["s3"]["bucket"]["name"]
+    key = event["Records"][0]["s3"]["object"]["key"]
+    platform = key.split("/")[1]
+    league_id = key.split("/")[2]
+    raw_data = read_s3_object(bucket=bucket, key=key)
 
-    # transformer = Transformer(platform=platform)
-    # transformed_data = transformer.transform(raw_data=raw_data)
-    # dynamo_writer = DynamoWriter(league_id=league_id, platform=platform)
+    transformer = Transformer(platform=platform)
+    transformed_data = transformer.transform(raw_data=raw_data)
+    dynamo_writer = DynamoWriter(league_id=league_id, platform=platform)
+    for data in transformed_data.values():
+        dynamo_writer.write_all(views=data)
 
     return {}
 
 
-lambda_handler(
-    event="",
-    context={},
-)
+# lambda_handler(
+#     event="",
+#     context="",
+# )
