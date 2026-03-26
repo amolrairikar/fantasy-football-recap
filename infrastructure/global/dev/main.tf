@@ -118,11 +118,18 @@ module "s3-bidirectional-replication" {
   primary_lambda       = "fantasy-football-recap-processor-${var.environment}-east"
   secondary_lambda     = "fantasy-football-recap-processor-${var.environment}-west"
 
-  lifecycle_rules = [{
-    rule_name       = "expire-noncurrent-objects"
-    prefix          = "lambda-code-artifacts/"
-    noncurrent_days = 7
-  }]
+  lifecycle_rules = [
+    {
+      rule_name       = "expire-noncurrent-objects"
+      prefix          = "lambda-code-artifacts/"
+      noncurrent_days = 7
+    },
+    {
+      rule_name       = "expire-noncurrent-api-data"
+      prefix          = "raw-api-data/"
+      noncurrent_days = 7
+    }
+  ]
 
   tags = {
     environment = var.environment
@@ -184,6 +191,17 @@ module "onboarding-lambda-role" {
         Resource = [
           "${local.primary_bucket_arn}/raw-api-data/*",
           "${local.secondary_bucket_arn}/raw-api-data/*"
+        ]
+      },
+      {
+        Sid    = "WriteJobStatusDynamoDB"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:PutItem",
+        ]
+        Resource = [
+          module.dynamodb.primary_table_arn,
+          module.dynamodb.replica_table_arn
         ]
       }
     ]
@@ -250,6 +268,17 @@ module "processing-lambda-role" {
         Resource = [
           module.dynamodb.primary_table_arn,
           module.dynamodb.replica_table_arn
+        ]
+      },
+      {
+        Sid    = "ReadFromS3RawPrefix"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+        ]
+        Resource = [
+          "${local.primary_bucket_arn}/raw-api-data/*",
+          "${local.secondary_bucket_arn}/raw-api-data/*"
         ]
       }
     ]

@@ -1,11 +1,12 @@
 import os
+import uuid
 
 import asyncio
 
-from .espn_client import ESPNClient
-from .sleeper_client import SleeperClient
-from .utils import logger
-from .writer import upload_results_to_s3
+from espn_client import ESPNClient
+from sleeper_client import SleeperClient
+from utils import logger
+from writer import upload_results_to_s3, write_onboarding_job_id_to_dynamodb
 
 
 class OnboardingService:
@@ -48,19 +49,33 @@ class OnboardingService:
             espn_s2_cookie=espn_s2_cookie,
             swid_cookie=swid_cookie,
         )
+        self.canonical_league_id = str(uuid.uuid4())
 
-    def run(self) -> None:
+    def run(self) -> str:
         """Runs the onboarding logic."""
         logger.info("Beginning raw data fetch")
         raw_data = asyncio.run(self.client.fetch_all())
         logger.info("Completed data fetch")
+        logger.info("Updating job onboarding status in DynamoDB")
+        if isinstance(self.client, ESPNClient):
+            seasons = self.client.seasons
+        else:
+            seasons = list(self.client.season_mapping.keys())
+        job_id = write_onboarding_job_id_to_dynamodb(
+            league_id=self.league_id,
+            platform=self.platform,
+            canonical_league_id=self.canonical_league_id,
+            seasons=seasons,
+        )
+        logger.info("Wrote job onboarding status to DynamoDB")
         logger.info("Writing raw data to S3")
         upload_results_to_s3(
             results=raw_data,
             bucket_name=os.environ["S3_BUCKET_NAME"],
-            key_name=f"raw-api-data/{self.platform}/{self.league_id}/onboard.json",
+            key_name=f"raw-api-data/{self.platform}/{self.canonical_league_id}/onboard_{job_id}.json",
         )
         logger.info("Wrote raw data to S3")
+        return job_id
 
     def _build_client(
         self,
