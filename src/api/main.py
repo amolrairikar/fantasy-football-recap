@@ -242,7 +242,11 @@ def onboard_league(
             FunctionName=os.environ["ONBOARDER_LAMBDA_NAME"],
             InvocationType="Event",
             Payload=json.dumps(
-                {"body": payload.model_dump(), "requestType": requestType.value}
+                {
+                    "body": payload.model_dump(),
+                    "requestType": requestType.value,
+                    "canonicalLeagueId": canonical_league_id,
+                }
             ),
         )
 

@@ -1,7 +1,6 @@
 import datetime
 import json
 import os
-import uuid
 from typing import Any
 
 import boto3
@@ -35,15 +34,15 @@ def upload_results_to_s3(
         raise e
 
 
-def write_onboarding_job_id_to_dynamodb(
+def write_onboarding_status_to_dynamodb(
     league_id: str,
     platform: str,
     canonical_league_id: str,
     seasons: list[str],
     request_type: str,
-) -> str:
+):
     """
-    Writes the onboarding job ID and status to DynamoDB for client to poll to determine onboarding status.
+    Writes the onboarding status to DynamoDB for client to poll to determine onboarding status.
 
     Args:
         league_id: The ID for the league on its platform.
@@ -51,13 +50,9 @@ def write_onboarding_job_id_to_dynamodb(
         canonical_league_id: The unique ID for the league.
         seasons: List of strings representing number of seasons league was active for prior to onboarding.
         request_type: The type of onboarding request (e.g., "ONBOARD" or "REFRESH")
-
-    Returns:
-        The UUID corresponding to the current onboarding job run
     """
     try:
         dynamodb = boto3.client("dynamodb")
-        job_id = str(uuid.uuid4())
         table_name = os.environ["DYNAMODB_TABLE_NAME"]
         now_iso = datetime.datetime.now().isoformat()
 
@@ -100,7 +95,6 @@ def write_onboarding_job_id_to_dynamodb(
                             "PK": {"S": f"LEAGUE#{canonical_league_id}"},
                             "SK": {"S": "METADATA"},
                             "platform": {"S": platform},
-                            "onboarding_id": {"S": job_id},
                             "onboarded_at": {"S": now_iso},
                             "onboarding_status": {"S": "onboarding"},
                         },
@@ -120,7 +114,6 @@ def write_onboarding_job_id_to_dynamodb(
             ]
 
         dynamodb.transact_write_items(TransactItems=transact_items)
-        return job_id
     except KeyError as e:
         logger.error("Environment variable 'DYNAMODB_TABLE_NAME' not set!")
         raise e
