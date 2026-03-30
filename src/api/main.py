@@ -221,6 +221,17 @@ def onboard_league(
             data={"canonical_league_id": canonical_league_id},
         )
 
+    if requestType == RequestType.REFRESH and not canonical_league_id:
+        logger.warning(
+            "League %s not found for %s platform, cannot refresh non-existent league",
+            payload.leagueId,
+            platform.value,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"League {payload.leagueId} not found for {platform.value} platform, unable to refresh league",
+        )
+
     log_msg = (
         "Refreshing existing league" if canonical_league_id else "New league detected"
     )
