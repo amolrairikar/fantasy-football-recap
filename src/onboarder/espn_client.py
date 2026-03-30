@@ -1,15 +1,15 @@
 import json
-from typing import Any
+from typing import Any, Sequence, Union
 
 import aiohttp
 import asyncio
 import requests
 from yarl import URL
 
-from utils import logger, process_api_results
+from utils import logger
 
 DATA_FETCH_TYPES = [
-    "league_information",
+    "users",
     "settings",
     "draft_picks",
     "matchups",
@@ -102,7 +102,7 @@ class ESPNClient:
         """
         url = URL(base_url)
         param_map: dict[str, dict[str, list[str] | str]] = {
-            "league_information": {"view": ["mTeam"]},
+            "users": {"view": ["mTeam"]},
             "settings": {"view": ["mSettings", "mTeam"]},
             "draft_picks": {"view": ["mDraftDetail"]},
             "matchups": {"view": ["mBoxscore", "mMatchupScore"]},
@@ -178,7 +178,7 @@ class ESPNClient:
                 for url_data in self.request_urls
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            return process_api_results(results=results)
+            return self._process_api_results(results=results)
 
     async def _fetch(
         self,
@@ -225,3 +225,90 @@ class ESPNClient:
             except Exception as e:
                 logger.error("Failed request for url: %s, error: %s", url, e)
                 return {"season": season, "data_type": data_type, "data": None}
+
+    def _process_api_results(
+        self,
+        results: Sequence[Union[dict[str, Any], BaseException]],
+    ) -> list[dict[str, Any]]:
+        """
+        Validates API responses and raises on any failure.
+
+        Args:
+            results: Unprocessed API responses.
+
+        Returns:
+            Validated API responses with no None data values.
+        """
+        processed_results = []
+        for result in results:
+            if isinstance(result, BaseException):
+                logger.error("Unhandled exception in gather: %s", result)
+                raise RuntimeError(
+                    f"Unexpected error occurred while fetching data: {result}"
+                )
+
+            season: str = result["season"]
+            data_type: str = result["data_type"]
+            data = result["data"]
+
+            if data is None:
+                raise RuntimeError(
+                    f"Failed to get data for season {season} and data type {data_type}"
+                )
+
+            # Filter ESPN responses due to large raw response size
+            if data_type == "users":
+                processed_data = {
+                    "members": data["members"],
+                    "teams": data["teams"],
+                }
+            elif data_type == "settings":
+                processed_data = {
+                    "settings": data["settings"],
+                }
+            elif data_type == "draft_picks":
+                processed_data = {"draft_picks": data["draftDetail"]["picks"]}
+            elif data_type.startswith("matchups"):
+                matchup_week = data_type[-1]
+                matchups = data["schedule"]
+                processed_matchups = [
+                    matchup
+                    for matchup in matchups
+                    if str(matchup["matchupPeriodId"]) == str(matchup_week)
+                ]
+                processed_data = {"matchups": processed_matchups}
+            elif data_type == "player_scoring_totals":
+                processed_player_totals = []
+                for player_total in data["players"]:
+                    processed_player_total = {
+                        "player_id": player_total.get("player", {}).get("id"),
+                        "player_name": player_total.get("player", {}).get("fullName"),
+                        "position": player_total.get("player", {}).get(
+                            "defaultPositionId"
+                        ),
+                        "team": player_total.get("player", {}).get(
+                            "proTeamId"
+                        ),  # TODO: determine if we want to use this
+                        "total_points": player_total.get("ratings", {})
+                        .get("0", {})
+                        .get("totalRating"),
+                        "positional_rank": player_total.get("ratings", {})
+                        .get("0", {})
+                        .get("positionalRanking"),
+                        "overall_rank": player_total.get("ratings", {})
+                        .get("0", {})
+                        .get("totalRanking"),
+                    }
+                    processed_player_totals.append(processed_player_total)
+                processed_data = {"player_scoring_totals": processed_player_totals}
+            else:
+                raise ValueError(f"Invalid data_type: {data_type}")
+            processed_result = {
+                "season": season,
+                "data_type": data_type,
+                "data": processed_data,
+            }
+
+            processed_results.append(processed_result)
+
+        return processed_results

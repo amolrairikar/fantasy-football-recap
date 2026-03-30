@@ -1,10 +1,10 @@
-from typing import Any
+from typing import Any, Sequence, Union
 
 import aiohttp
 import asyncio
 import requests
 
-from utils import logger, process_api_results
+from utils import logger
 
 SLEEPER_BASE_URL = "https://api.sleeper.app/v1"
 DATA_FETCH_TYPES = [
@@ -145,7 +145,7 @@ class SleeperClient:
                 for url_data in self.request_urls
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            return process_api_results(results=results)
+            return self._process_api_results(results=results)
 
     async def _fetch(
         self,
@@ -176,3 +176,37 @@ class SleeperClient:
             except Exception as e:
                 logger.error("Failed request for url: %s, error: %s", url, e)
                 return {"season": season, "data_type": data_type, "data": None}
+
+    def _process_api_results(
+        self,
+        results: Sequence[Union[dict[str, Any], BaseException]],
+    ) -> list[dict[str, Any]]:
+        """
+        Validates API responses and raises on any failure.
+
+        Args:
+            results: Unprocessed API responses.
+
+        Returns:
+            Validated API responses with no None data values.
+        """
+        processed_results = []
+        for result in results:
+            if isinstance(result, BaseException):
+                logger.error("Unhandled exception in gather: %s", result)
+                raise RuntimeError(
+                    f"Unexpected error occurred while fetching data: {result}"
+                )
+
+            season = result["season"]
+            data_type = result["data_type"]
+            data = result["data"]
+
+            if data is None:
+                raise RuntimeError(
+                    f"Failed to get data for season {season} and data type {data_type}"
+                )
+
+            processed_results.append(result)
+
+        return processed_results
