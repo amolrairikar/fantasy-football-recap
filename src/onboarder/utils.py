@@ -1,7 +1,6 @@
 import json
 import logging
 import time
-from typing import Any, Sequence, Union
 
 
 class JsonFormatter(logging.Formatter):
@@ -42,37 +41,3 @@ def setup_logger() -> logging.Logger:
 
 
 logger = setup_logger()
-
-
-def process_api_results(
-    results: Sequence[Union[dict[str, Any], BaseException]],
-) -> list[dict[str, Any]]:
-    """
-    Validates API responses and raises on any failure.
-
-    Args:
-        results: Unprocessed API responses.
-
-    Returns:
-        Validated API responses with no None data values.
-    """
-    processed_results = []
-    for result in results:
-        if isinstance(result, BaseException):
-            logger.error("Unhandled exception in gather: %s", result)
-            raise RuntimeError(
-                f"Unexpected error occurred while fetching data: {result}"
-            )
-
-        season = result["season"]
-        data_type = result["data_type"]
-        data = result["data"]
-
-        if data is None:
-            raise RuntimeError(
-                f"Failed to get data for season {season} and data type {data_type}"
-            )
-
-        processed_results.append(result)
-
-    return processed_results

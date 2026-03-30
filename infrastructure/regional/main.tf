@@ -85,6 +85,7 @@ module "api_lambda" {
 
   environment_variables = {
     DYNAMODB_TABLE_NAME = "fantasy-football-recap-table-${var.environment}"
+    S3_BUCKET_NAME      = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
   }
 
   tags = {
