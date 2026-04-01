@@ -147,6 +147,7 @@ resource "aws_cloudwatch_log_resource_policy" "apigateway_log_delivery" {
 }
 
 resource "aws_acm_certificate" "api_subdomain_cert" {
+  count             = var.environment == "prod" ? 1 : 0
   domain_name       = "api.leagueql.com"
   validation_method = "DNS"
 
@@ -159,6 +160,7 @@ resource "aws_acm_certificate" "api_subdomain_cert" {
 }
 
 resource "aws_apigatewayv2_domain_name" "api_subdomain" {
+  count       = var.environment == "prod" ? 1 : 0
   domain_name = "api.leagueql.com"
 
   domain_name_configuration {
@@ -169,6 +171,7 @@ resource "aws_apigatewayv2_domain_name" "api_subdomain" {
 }
 
 resource "aws_apigatewayv2_api_mapping" "api_subdomain_mapping" {
+  count       = var.environment == "prod" ? 1 : 0
   api_id      = module.backend_api.api_id
   domain_name = aws_apigatewayv2_domain_name.api_subdomain.id
   stage       = "$default"
