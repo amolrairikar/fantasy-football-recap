@@ -164,7 +164,7 @@ resource "aws_apigatewayv2_domain_name" "api_subdomain" {
   domain_name = "api.leagueql.com"
 
   domain_name_configuration {
-    certificate_arn = aws_acm_certificate.api_subdomain_cert.arn
+    certificate_arn = aws_acm_certificate.api_subdomain_cert[0].arn
     endpoint_type   = "REGIONAL"
     security_policy = "TLS_1_2"
   }
@@ -173,6 +173,6 @@ resource "aws_apigatewayv2_domain_name" "api_subdomain" {
 resource "aws_apigatewayv2_api_mapping" "api_subdomain_mapping" {
   count       = var.environment == "prod" ? 1 : 0
   api_id      = module.backend_api.api_id
-  domain_name = aws_apigatewayv2_domain_name.api_subdomain.id
+  domain_name = aws_apigatewayv2_domain_name.api_subdomain[0].id
   stage       = "$default"
 }
