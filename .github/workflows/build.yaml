@@ -171,6 +171,32 @@ jobs:
             -var="processor_lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/fantasy-football-recap-processing-lambda-${{ env.ENVIRONMENT }}-role" \
             -var="api_lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/fantasy-football-recap-api-lambda-${{ env.ENVIRONMENT }}-role"
 
+  deploy-cloudflare-pages:
+    name: Deploy to Cloudflare Pages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    needs:
+      - set-env
+      - deploy-global
+      - deploy-lambda-artifacts
+      - deploy-regional
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Build
+        run: cd frontend && npm install && npm run build
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy frontend/dist --project-name=leagueql-app
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
   # live-dependency-tests:
   #   name: Live Dependency Tests
   #   runs-on: ubuntu-latest
