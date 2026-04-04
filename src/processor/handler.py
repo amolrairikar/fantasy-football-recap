@@ -88,10 +88,12 @@ def lambda_handler(event, context) -> dict[str, str | int]:
     league_id = key.split("/")[2]
 
     manifest = read_s3_object(bucket=bucket, key=key)
+    logger.info("Successfully read manifest file")
     seasons = manifest["seasons"]
     prefix = "/".join(key.split("/")[:3])
     raw_data: list[dict[str, Any]] = []
     for season in seasons:
+        logger.info("Processing season %s", season)
         season_data = read_s3_object(bucket=bucket, key=f"{prefix}/{season}.json")
         raw_data.extend(season_data)
 
