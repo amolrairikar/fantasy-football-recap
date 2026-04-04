@@ -11,7 +11,7 @@ from transformer import Transformer
 s3_client = boto3.client("s3")
 
 
-def read_s3_object(bucket: str, key: str) -> list[dict[str, Any]]:
+def read_s3_object(bucket: str, key: str) -> Any:
     """
     Reads an object from S3 with the given bucket and key.
 
@@ -86,7 +86,14 @@ def lambda_handler(event, context) -> dict[str, str | int]:
     logger.info(f"Object {key} has prior versions: {prior_versions_exist}")
     platform = key.split("/")[1]
     league_id = key.split("/")[2]
-    raw_data = read_s3_object(bucket=bucket, key=key)
+
+    manifest = read_s3_object(bucket=bucket, key=key)
+    seasons = manifest["seasons"]
+    prefix = "/".join(key.split("/")[:3])
+    raw_data: list[dict[str, Any]] = []
+    for season in seasons:
+        season_data = read_s3_object(bucket=bucket, key=f"{prefix}/{season}.json")
+        raw_data.extend(season_data)
 
     transformer = Transformer(platform=platform)
     transformed_data = transformer.transform(raw_data=raw_data)
