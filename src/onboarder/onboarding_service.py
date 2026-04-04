@@ -82,6 +82,7 @@ class OnboardingService:
             results=raw_data,
             bucket_name=os.environ["S3_BUCKET_NAME"],
             prefix=f"raw-api-data/{self.canonical_league_id}",
+            platform=self.platform,
         )
         logger.info("Wrote raw data to S3")
 

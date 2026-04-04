@@ -10,7 +10,7 @@ from utils import logger
 
 
 def upload_results_to_s3(
-    results: list[dict[str, Any]], bucket_name: str, prefix: str
+    results: list[dict[str, Any]], bucket_name: str, prefix: str, platform: str
 ) -> None:
     """
     Uploads raw API data to S3 as per-season files plus a manifest.
@@ -21,14 +21,15 @@ def upload_results_to_s3(
     Args:
         results: List containing raw API results.
         bucket_name: Name of the S3 bucket to upload data to.
-        prefix: Key prefix within the S3 bucket (e.g. "raw-api-data/{platform}/{league_id}").
+        prefix: Key prefix within the S3 bucket (e.g. "raw-api-data/{league_id}").
+        platform: The platform (e.g., ESPN, SLEEPER) that the league is on.
     """
     try:
         s3 = boto3.client("s3")
 
         seasons_data: dict[str, list[dict[str, Any]]] = {}
         for item in results:
-            season = item["season"]
+            season = str(item["season"])
             seasons_data.setdefault(season, []).append(item)
 
         for season, season_results in seasons_data.items():
@@ -39,11 +40,27 @@ def upload_results_to_s3(
                 ContentType="application/json",
             )
 
-        manifest = {"seasons": sorted(seasons_data.keys())}
+        manifest_key = f"{prefix}/manifest.json"
+        try:
+            existing_manifest_obj = s3.get_object(Bucket=bucket_name, Key=manifest_key)
+            full_manifest = json.loads(existing_manifest_obj["Body"].read())
+        except botocore.exceptions.ClientError as e:
+            if e.response.get("Error", {}).get("Code") == "NoSuchKey":
+                full_manifest = {}
+            else:
+                logger.error(
+                    "Error occurred while fetching existing manifest from S3: %s", e
+                )
+                raise
+
+        existing_seasons = set(full_manifest.get(platform, []))
+        new_seasons = set(seasons_data.keys())
+        full_manifest[platform] = sorted(existing_seasons.union(new_seasons))
+
         s3.put_object(
             Bucket=bucket_name,
             Key=f"{prefix}/manifest.json",
-            Body=json.dumps(manifest),
+            Body=json.dumps(full_manifest),
             ContentType="application/json",
         )
     except botocore.exceptions.ClientError as e:
