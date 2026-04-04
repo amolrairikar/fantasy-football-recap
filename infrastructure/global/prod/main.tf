@@ -217,9 +217,10 @@ module "onboarding-lambda-role" {
         ]
       },
       {
-        Sid    = "WriteJobStatusDynamoDB"
+        Sid    = "ReadWriteDynamoDB"
         Effect = "Allow"
         Action = [
+          "dynamodb:GetItem",
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
         ]
