@@ -84,12 +84,12 @@ def lambda_handler(event, context) -> dict[str, str | int]:
     key = event["Records"][0]["s3"]["object"]["key"]
     prior_versions_exist = has_prior_versions(bucket=bucket, key=key)
     logger.info(f"Object {key} has prior versions: {prior_versions_exist}")
-    platform = key.split("/")[1]
-    league_id = key.split("/")[2]
+    canonical_league_id = key.split("/")[1]
 
     manifest = read_s3_object(bucket=bucket, key=key)
     logger.info("Successfully read manifest file")
-    seasons = manifest["seasons"]
+    platform = next(iter(manifest))
+    seasons = manifest[platform]
     prefix = "/".join(key.split("/")[:2])
     raw_data: list[dict[str, Any]] = []
     for season in seasons:
@@ -100,7 +100,7 @@ def lambda_handler(event, context) -> dict[str, str | int]:
     transformer = Transformer(platform=platform)
     transformed_data = transformer.transform(raw_data=raw_data)
     dynamo_writer = DynamoWriter(
-        league_id=league_id, platform=platform, refresh=prior_versions_exist
+        league_id=canonical_league_id, platform=platform, refresh=prior_versions_exist
     )
     dynamo_writer.write_all(views=transformed_data)
 
