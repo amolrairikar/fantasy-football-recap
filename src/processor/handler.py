@@ -90,7 +90,7 @@ def lambda_handler(event, context) -> dict[str, str | int]:
     manifest = read_s3_object(bucket=bucket, key=key)
     logger.info("Successfully read manifest file")
     seasons = manifest["seasons"]
-    prefix = "/".join(key.split("/")[:3])
+    prefix = "/".join(key.split("/")[:2])
     raw_data: list[dict[str, Any]] = []
     for season in seasons:
         logger.info("Processing season %s", season)
