@@ -69,6 +69,7 @@ resource "aws_s3_bucket_notification" "primary_notification" {
     lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:${var.primary_lambda}"
     events              = ["s3:ObjectCreated:*"]
     filter_prefix       = "raw-api-data/"
+    filter_suffix       = "manifest.json"
   }
 
   depends_on = [aws_lambda_permission.allow_primary_s3]
@@ -190,6 +191,7 @@ resource "aws_s3_bucket_notification" "secondary_notification" {
     lambda_function_arn = "arn:aws:lambda:us-west-2:${var.account_id}:function:${var.secondary_lambda}"
     events              = ["s3:ObjectCreated:*"]
     filter_prefix       = "raw-api-data/"
+    filter_suffix       = "manifest.json"
   }
 
   depends_on = [aws_lambda_permission.allow_secondary_s3]

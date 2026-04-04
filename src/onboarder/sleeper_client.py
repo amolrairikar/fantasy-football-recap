@@ -32,13 +32,13 @@ class SleeperClient:
         _fetch(session, semaphore, url_data): Fetch a single URL asynchronously.
     """
 
-    def __init__(self, league_id: str):
+    def __init__(self, league_id: str, is_refresh: bool = False):
         """Constructor."""
         self.league_id = league_id
-        self.season_mapping = self._get_league_seasons()
+        self.season_mapping = self._get_league_seasons(is_refresh=is_refresh)
         self.request_urls = self._build_all_request_urls()
 
-    def _get_league_seasons(self) -> dict[str, str]:
+    def _get_league_seasons(self, is_refresh: bool = False) -> dict[str, str]:
         """
         Gets mapping of all seasons the league has been active for prior to onboarding
         and the corresponding league_ids.
@@ -46,6 +46,9 @@ class SleeperClient:
         Iteratively walks backwards through the league's history one season
         at a time via the previous_league_id field until it reaches the
         oldest season (previous_league_id == "0"), then returns the mapping.
+
+        Args:
+            is_refresh: If True, only fetches the current (most recent) season.
 
         Returns:
             Mapping of seasons league was active and the corresponding league_id for
@@ -71,6 +74,10 @@ class SleeperClient:
                 raise RuntimeError(
                     f"Unexpected response from Sleeper API: missing field {e}"
                 ) from e
+
+            if is_refresh:
+                break
+
             previous_league_id = data.get("previous_league_id", "0")
             if previous_league_id == "0":
                 break

@@ -29,9 +29,10 @@ class ESPNClient:
             private ESPN league data.
         swid: Optional cookie value for SWID cookie, required to fetch
             private ESPN league data.
+        is_refresh: Boolean indicating if this fetch is for a data refresh, which only fetches the latest season's data.
 
     Methods:
-        __init__(league_id, latest_season, s2, swid): Constructor
+        __init__(league_id, latest_season, s2, swid, is_refresh): Constructor
         _get_league_seasons(latest_season): Gets list of all the seasons league has been active.
         _construct_request_url(base_url, data_type, week): Creates full ESPN Fantasy Football API request URL based on the type of data to fetch.
         _build_all_request_urls(): Constructs all ESPN Fantasy Football API request URLs needed to fetch data for app.
@@ -47,6 +48,7 @@ class ESPNClient:
         latest_season: str,
         s2: str | None = None,
         swid: str | None = None,
+        is_refresh: bool = False,
     ):
         """Constructor."""
         if (
@@ -57,7 +59,10 @@ class ESPNClient:
         self.league_id = league_id
         self.s2 = s2
         self.swid = swid
-        self.seasons = self._get_league_seasons(latest_season=latest_season)
+        if is_refresh:
+            self.seasons = [latest_season]
+        else:
+            self.seasons = self._get_league_seasons(latest_season=latest_season)
         self.request_urls = self._build_all_request_urls()
 
     def _get_league_seasons(self, latest_season: str) -> list[str]:

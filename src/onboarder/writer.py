@@ -10,23 +10,40 @@ from utils import logger
 
 
 def upload_results_to_s3(
-    results: list[dict[str, Any]], bucket_name: str, key_name: str
+    results: list[dict[str, Any]], bucket_name: str, prefix: str
 ) -> None:
     """
-    Uploads raw API data to S3.
+    Uploads raw API data to S3 as per-season files plus a manifest.
+
+    Groups results by season and writes one {season}.json per season, then
+    writes manifest.json last (which is the S3 trigger target for the processor).
 
     Args:
         results: List containing raw API results.
         bucket_name: Name of the S3 bucket to upload data to.
-        key_name: Full key path within the S3 bucket to upload data to.
+        prefix: Key prefix within the S3 bucket (e.g. "raw-api-data/{platform}/{league_id}").
     """
     try:
         s3 = boto3.client("s3")
-        json_data = json.dumps(results)
+
+        seasons_data: dict[str, list[dict[str, Any]]] = {}
+        for item in results:
+            season = item["season"]
+            seasons_data.setdefault(season, []).append(item)
+
+        for season, season_results in seasons_data.items():
+            s3.put_object(
+                Bucket=bucket_name,
+                Key=f"{prefix}/{season}.json",
+                Body=json.dumps(season_results),
+                ContentType="application/json",
+            )
+
+        manifest = {"seasons": sorted(seasons_data.keys())}
         s3.put_object(
             Bucket=bucket_name,
-            Key=key_name,
-            Body=json_data,
+            Key=f"{prefix}/manifest.json",
+            Body=json.dumps(manifest),
             ContentType="application/json",
         )
     except botocore.exceptions.ClientError as e:
@@ -79,7 +96,7 @@ def write_onboarding_status_to_dynamodb(
                             "PK": {"S": f"LEAGUE#{league_id}#PLATFORM#{platform}"},
                             "SK": {"S": "LEAGUE_LOOKUP"},
                         },
-                        "UpdateExpression": "SET seasons = :s",
+                        "UpdateExpression": "ADD seasons :s",
                         "ExpressionAttributeValues": {
                             ":s": {"SS": seasons},
                         },

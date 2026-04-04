@@ -55,6 +55,7 @@ class OnboardingService:
             latest_season=latest_season,
             espn_s2_cookie=espn_s2_cookie,
             swid_cookie=swid_cookie,
+            is_refresh=(request_type == "REFRESH"),
         )
         self.canonical_league_id = canonical_league_id or str(uuid.uuid4())
 
@@ -80,7 +81,7 @@ class OnboardingService:
         upload_results_to_s3(
             results=raw_data,
             bucket_name=os.environ["S3_BUCKET_NAME"],
-            key_name=f"raw-api-data/{self.platform}/{self.canonical_league_id}/onboard.json",
+            prefix=f"raw-api-data/{self.canonical_league_id}",
         )
         logger.info("Wrote raw data to S3")
 
@@ -91,6 +92,7 @@ class OnboardingService:
         latest_season: str | None = None,
         espn_s2_cookie: str | None = None,
         swid_cookie: str | None = None,
+        is_refresh: bool = False,
     ) -> ESPNClient | SleeperClient:
         """
         Builds API request client for the provided platform (e.g., URL/cookie setup).
@@ -104,6 +106,7 @@ class OnboardingService:
                 private ESPN league data.
             swid_cookie: Optional cookie value for SWID cookie, required to fetch
                 private ESPN league data.
+            is_refresh: If True, only fetches the current season's data.
 
         Returns:
             ESPNClient or SleeperClient.
@@ -116,8 +119,9 @@ class OnboardingService:
                 latest_season=latest_season,
                 s2=espn_s2_cookie,
                 swid=swid_cookie,
+                is_refresh=is_refresh,
             )
         elif platform == "SLEEPER":
-            return SleeperClient(league_id)
+            return SleeperClient(league_id, is_refresh=is_refresh)
         else:
             raise ValueError(f"Unsupported platform: {platform}")
