@@ -1,7 +1,10 @@
-from typing import Any, Sequence, Union
+import os
+from typing import Any, Optional, Sequence, Union
 
 import aiohttp
 import asyncio
+import boto3
+import botocore.exceptions
 import requests
 
 from utils import logger
@@ -14,6 +17,70 @@ DATA_FETCH_TYPES = [
     "transactions",
     "drafts",
 ]
+
+
+def resolve_sleeper_canonical_league_id(new_league_id: str) -> Optional[str]:
+    """
+    Resolves the canonical_league_id for a new Sleeper season by walking the
+    previous_league_id chain until a known league ID is found in DynamoDB.
+
+    Args:
+        new_league_id: The new season's Sleeper league ID that is not yet in LEAGUE_LOOKUP.
+
+    Returns:
+        The canonical_league_id if a prior season is found in LEAGUE_LOOKUP, or None if
+        the chain is exhausted without finding a match (truly unknown league).
+    """
+    dynamodb = boto3.client("dynamodb")
+    table_name = os.environ["DYNAMODB_TABLE_NAME"]
+    current_id = new_league_id
+
+    while True:
+        url = f"{SLEEPER_BASE_URL}/league/{current_id}"
+        response = requests.get(url)
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            logger.error(
+                "Error fetching Sleeper league %s during chain walk: %s", current_id, e
+            )
+            raise e
+
+        data = response.json()
+        previous_league_id = data.get("previous_league_id", "0")
+        if previous_league_id == "0":
+            logger.warning(
+                "Exhausted previous_league_id chain from %s without finding a known league",
+                new_league_id,
+            )
+            return None
+
+        try:
+            result = dynamodb.get_item(
+                TableName=table_name,
+                Key={
+                    "PK": {"S": f"LEAGUE#{previous_league_id}#PLATFORM#SLEEPER"},
+                    "SK": {"S": "LEAGUE_LOOKUP"},
+                },
+            )
+        except botocore.exceptions.ClientError as e:
+            logger.error(
+                "DynamoDB error while resolving Sleeper canonical league ID: %s", e
+            )
+            raise e
+
+        item = result.get("Item")
+        if item and item.get("canonical_league_id"):
+            canonical_league_id = item["canonical_league_id"]["S"]
+            logger.info(
+                "Resolved canonical_league_id %s for new season league ID %s via previous_league_id %s",
+                canonical_league_id,
+                new_league_id,
+                previous_league_id,
+            )
+            return canonical_league_id
+
+        current_id = previous_league_id
 
 
 class SleeperClient:
@@ -32,13 +99,13 @@ class SleeperClient:
         _fetch(session, semaphore, url_data): Fetch a single URL asynchronously.
     """
 
-    def __init__(self, league_id: str):
+    def __init__(self, league_id: str, is_refresh: bool = False):
         """Constructor."""
         self.league_id = league_id
-        self.season_mapping = self._get_league_seasons()
+        self.season_mapping = self._get_league_seasons(is_refresh=is_refresh)
         self.request_urls = self._build_all_request_urls()
 
-    def _get_league_seasons(self) -> dict[str, str]:
+    def _get_league_seasons(self, is_refresh: bool = False) -> dict[str, str]:
         """
         Gets mapping of all seasons the league has been active for prior to onboarding
         and the corresponding league_ids.
@@ -46,6 +113,9 @@ class SleeperClient:
         Iteratively walks backwards through the league's history one season
         at a time via the previous_league_id field until it reaches the
         oldest season (previous_league_id == "0"), then returns the mapping.
+
+        Args:
+            is_refresh: If True, only fetches the current (most recent) season.
 
         Returns:
             Mapping of seasons league was active and the corresponding league_id for
@@ -71,6 +141,10 @@ class SleeperClient:
                 raise RuntimeError(
                     f"Unexpected response from Sleeper API: missing field {e}"
                 ) from e
+
+            if is_refresh:
+                break
+
             previous_league_id = data.get("previous_league_id", "0")
             if previous_league_id == "0":
                 break
