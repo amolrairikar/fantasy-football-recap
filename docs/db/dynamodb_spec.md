@@ -140,3 +140,28 @@ Represents all teams across all seasons in the fantasy league.
 }
 ```
 </details>
+
+<details>
+<summary><b>MATCHUPS</b></summary>
+
+Represents matchups for a given week in the fantasy league.
+
+| Attribute | Type | Required | Description |
+|---|---|---|---|
+| `PK` | String | Yes | `LEAGUE#{league_id}` |
+| `SK` | String | Yes | `MATCHUPS#{season}#{week}` |
+| `matchups` | List\<Array\> | Yes | A list of objects containing weekly matchups details |
+
+**Example:**
+```json
+{
+  "PK": "LEAGUE#123456789",
+  "SK": "MATCHUPS#2025#01",
+  "teams": [
+    {
+      "TBD": "tbd",
+    }
+  ]
+}
+```
+</details>
