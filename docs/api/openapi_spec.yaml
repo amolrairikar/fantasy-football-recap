@@ -32,8 +32,9 @@ paths:
       summary: Get league metadata
       description: >
         Checks whether a league has been onboarded. If the league exists,
-        returns the canonical league ID. Returns 404 if the league
-        has not been onboarded yet.
+        returns the full league lookup item including the canonical league ID
+        and the list of seasons the league has been active for. Returns 404
+        if the league has not been onboarded yet.
       operationId: getLeague
       parameters:
         - name: leagueId
@@ -211,11 +212,17 @@ components:
 
     LeagueFoundData:
       type: object
-      required: [canonical_league_id]
+      required: [canonical_league_id, seasons]
       properties:
         canonical_league_id:
           type: string
           example: "12345678"
+        seasons:
+          type: array
+          items:
+            type: string
+          description: List of seasons the league has been active for.
+          example: ["2023", "2024"]
 
     APIResponse:
       type: object
@@ -302,6 +309,7 @@ components:
             detail: "Found league"
             data:
               canonical_league_id: "12345678"
+              seasons: ["2023", "2024"]
 
     DeleteLeagueResponse:
       description: League successfully deleted

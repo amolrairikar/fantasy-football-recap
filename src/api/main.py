@@ -283,11 +283,23 @@ def delete_league(
         "Proceeding with delete for canonical_league_id: %s", canonical_league_id
     )
     try:
+        table_name = os.environ["DYNAMODB_TABLE_NAME"]
+        matchups_response = dynamodb_client.query(
+            TableName=table_name,
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
+            ExpressionAttributeValues={
+                ":pk": {"S": f"LEAGUE#{canonical_league_id}"},
+                ":prefix": {"S": "MATCHUPS#"},
+            },
+            ProjectionExpression="PK, SK",
+        )
+        matchup_delete_keys = [item for item in matchups_response.get("Items", [])]
+
         dynamodb_client.transact_write_items(
             TransactItems=[
                 {
                     "Delete": {
-                        "TableName": os.environ["DYNAMODB_TABLE_NAME"],
+                        "TableName": table_name,
                         "Key": {
                             "PK": {"S": f"LEAGUE#{canonical_league_id}"},
                             "SK": {"S": "METADATA"},
@@ -296,7 +308,7 @@ def delete_league(
                 },
                 {
                     "Delete": {
-                        "TableName": os.environ["DYNAMODB_TABLE_NAME"],
+                        "TableName": table_name,
                         "Key": {
                             "PK": {"S": f"LEAGUE#{canonical_league_id}"},
                             "SK": {"S": "TEAMS"},
@@ -305,7 +317,7 @@ def delete_league(
                 },
                 {
                     "Delete": {
-                        "TableName": os.environ["DYNAMODB_TABLE_NAME"],
+                        "TableName": table_name,
                         "Key": {
                             "PK": {"S": f"LEAGUE#{leagueId}#PLATFORM#{platform.value}"},
                             "SK": {"S": "LEAGUE_LOOKUP"},
@@ -314,7 +326,7 @@ def delete_league(
                 },
                 {
                     "Update": {
-                        "TableName": os.environ["DYNAMODB_TABLE_NAME"],
+                        "TableName": table_name,
                         "Key": {"PK": {"S": "APP#STATS"}, "SK": {"S": "LEAGUE_COUNT"}},
                         "UpdateExpression": "SET #c = #c - :val",
                         "ConditionExpression": "attribute_exists(PK) AND #c > :zero",
@@ -327,6 +339,15 @@ def delete_league(
                 },
             ]
         )
+
+        # Delete all MATCHUPS items in batches of 25 (DynamoDB batch_write_item limit)
+        for i in range(0, len(matchup_delete_keys), 25):
+            batch = matchup_delete_keys[i : i + 25]
+            dynamodb_client.batch_write_item(
+                RequestItems={
+                    table_name: [{"DeleteRequest": {"Key": key}} for key in batch]
+                }
+            )
         logger.info("Deleted league items from DynamoDB")
 
         # After DB delete, delete raw API data files from S3
