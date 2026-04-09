@@ -60,7 +60,7 @@ class DynamoWriter:
                             "SK": {"S": "METADATA"},
                         },
                         "UpdateExpression": "SET refresh_status = :val",
-                        "ExpressionAttributeValues": {":val": {"S": "completed"}},
+                        "ExpressionAttributeValues": {":val": {"S": "COMPLETED"}},
                     }
                 }
             )
@@ -75,7 +75,7 @@ class DynamoWriter:
                                 "SK": {"S": "METADATA"},
                             },
                             "UpdateExpression": "SET onboarding_status = :val",
-                            "ExpressionAttributeValues": {":val": {"S": "completed"}},
+                            "ExpressionAttributeValues": {":val": {"S": "COMPLETED"}},
                         }
                     },
                     {
