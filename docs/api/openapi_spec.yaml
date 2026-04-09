@@ -206,6 +206,51 @@ paths:
         uri: "arn:aws:apigateway:${aws_region}:lambda:path/2015-03-31/functions/${lambda_arn}/invocations"
         payloadFormatVersion: "2.0"   # use 2.0 for HTTP API (v2)
 
+  /leagues/{leagueId}/refresh_status:
+    get:
+      summary: Check onboarding/refresh status for a league
+      description: >
+        Returns the current status of an onboarding or refresh operation for the specified league.
+        Used for polling after triggering onboarding or a refresh to know when the data is ready.
+      operationId: checkRefreshStatus
+      parameters:
+        - name: leagueId
+          in: path
+          required: true
+          description: The ESPN or Sleeper league ID
+          schema:
+            type: string
+            pattern: '^\d+$'
+            example: "12345678"
+        - name: platform
+          in: query
+          required: true
+          description: The name of the platform the fantasy football league is on
+          schema:
+            type: string
+            enum: [ESPN, SLEEPER]
+            example: "ESPN"
+        - name: refreshOperation
+          in: query
+          required: true
+          description: The type of refresh ("ONBOARD" or "REFRESH") to check the status of.
+          schema:
+            type: string
+            enum: [ONBOARD, REFRESH]
+            example: "ONBOARD"
+      responses:
+        "200":
+          ref: "#/components/responses/LeagueStatusSuccessResponse"
+        "404":
+          $ref: "#/components/responses/LeagueNotFoundError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST        # always POST for Lambda proxy, regardless of your route method
+        uri: "arn:aws:apigateway:${aws_region}:lambda:path/2015-03-31/functions/${lambda_arn}/invocations"
+        payloadFormatVersion: "2.0"   # use 2.0 for HTTP API (v2)
+
 components:
 
   schemas:
@@ -335,6 +380,21 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/QueryResponse"
+
+    LeagueStatusSuccessResponse:
+      description: League status returned successfully
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+                enum: [IN_PROGRESS, COMPLETED, FAILED]
+                example: "IN_PROGRESS"
+              message:
+                type: string
+                example: "Onboarding is currently IN_PROGRESS."
 
     # ── Error responses ────────────────────────────────────
 
