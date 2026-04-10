@@ -136,7 +136,7 @@ def write_onboarding_status_to_dynamodb(
                         },
                         "UpdateExpression": "SET refresh_status = :rs, last_refreshed_date = :rd",
                         "ExpressionAttributeValues": {
-                            ":rs": {"S": "refreshing"},
+                            ":rs": {"S": "IN_PROGRESS"},
                             ":rd": {"S": now_iso},
                         },
                     }
@@ -153,7 +153,7 @@ def write_onboarding_status_to_dynamodb(
                             "SK": {"S": "METADATA"},
                             "platform": {"S": platform},
                             "onboarded_at": {"S": now_iso},
-                            "onboarding_status": {"S": "onboarding"},
+                            "onboarding_status": {"S": "IN_PROGRESS"},
                         },
                     }
                 },

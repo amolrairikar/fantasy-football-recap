@@ -164,6 +164,38 @@ def lookup_league(league_id: str, platform: Platform) -> str:
     return item["canonical_league_id"]
 
 
+def get_league_metadata(canonical_league_id: str) -> dict:
+    """
+    Utility function to get league metadata for a given canonical league ID.
+
+    Args:
+        canonical_league_id: The canonical league ID.
+
+    Returns:
+        A dictionary containing the league metadata.
+    """
+    pk = f"LEAGUE#{canonical_league_id}"
+    sk = "METADATA"
+    try:
+        response = table.get_item(Key={"PK": pk, "SK": sk})
+    except botocore.exceptions.ClientError as e:
+        logger.error("Boto error occurred: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        )
+
+    item = response.get("Item")
+    if not item:
+        logger.warning("League with canonical ID %s not found", canonical_league_id)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"League with canonical ID {canonical_league_id} not found",
+        )
+
+    return item
+
+
 @app.get("/", status_code=status.HTTP_200_OK)
 def root() -> APIResponse:
     """Makes health check to API root URL."""
@@ -188,6 +220,37 @@ def get_league(
     return APIResponse(
         detail="Found league",
         data={"canonical_league_id": canonical_league_id},
+    )
+
+
+@app.get("/leagues/{leagueId}/refresh_status", status_code=status.HTTP_200_OK)
+def get_refresh_status(
+    leagueId: Annotated[
+        str, Path(description="The ID of the fantasy league", pattern=r"^\d+$")
+    ],
+    platform: Annotated[Platform, Query(description="The platform the league is on")],
+    refreshOperation: Annotated[
+        RequestType,
+        Query(
+            description="The type of refresh ('ONBOARD' or 'REFRESH') to check the status of"
+        ),
+    ],
+) -> APIResponse:
+    """Gets the refresh status for a given league."""
+    canonical_league_id = lookup_league(league_id=leagueId, platform=platform)
+    league_metadata = get_league_metadata(canonical_league_id=canonical_league_id)
+    if refreshOperation == RequestType.ONBOARD:
+        refresh_status = league_metadata.get("onboarding_status", "FAILED")
+    elif refreshOperation == RequestType.REFRESH:
+        refresh_status = league_metadata.get("refresh_status", "FAILED")
+
+    return APIResponse(
+        detail="Found refresh status",
+        data={
+            "canonical_league_id": canonical_league_id,
+            "refresh_operation": refreshOperation.value,
+            "refresh_status": refresh_status,
+        },
     )
 
 
@@ -283,11 +346,23 @@ def delete_league(
         "Proceeding with delete for canonical_league_id: %s", canonical_league_id
     )
     try:
+        table_name = os.environ["DYNAMODB_TABLE_NAME"]
+        matchups_response = dynamodb_client.query(
+            TableName=table_name,
+            KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
+            ExpressionAttributeValues={
+                ":pk": {"S": f"LEAGUE#{canonical_league_id}"},
+                ":prefix": {"S": "MATCHUPS#"},
+            },
+            ProjectionExpression="PK, SK",
+        )
+        matchup_delete_keys = [item for item in matchups_response.get("Items", [])]
+
         dynamodb_client.transact_write_items(
             TransactItems=[
                 {
                     "Delete": {
-                        "TableName": os.environ["DYNAMODB_TABLE_NAME"],
+                        "TableName": table_name,
                         "Key": {
                             "PK": {"S": f"LEAGUE#{canonical_league_id}"},
                             "SK": {"S": "METADATA"},
@@ -296,7 +371,7 @@ def delete_league(
                 },
                 {
                     "Delete": {
-                        "TableName": os.environ["DYNAMODB_TABLE_NAME"],
+                        "TableName": table_name,
                         "Key": {
                             "PK": {"S": f"LEAGUE#{canonical_league_id}"},
                             "SK": {"S": "TEAMS"},
@@ -305,7 +380,7 @@ def delete_league(
                 },
                 {
                     "Delete": {
-                        "TableName": os.environ["DYNAMODB_TABLE_NAME"],
+                        "TableName": table_name,
                         "Key": {
                             "PK": {"S": f"LEAGUE#{leagueId}#PLATFORM#{platform.value}"},
                             "SK": {"S": "LEAGUE_LOOKUP"},
@@ -314,7 +389,7 @@ def delete_league(
                 },
                 {
                     "Update": {
-                        "TableName": os.environ["DYNAMODB_TABLE_NAME"],
+                        "TableName": table_name,
                         "Key": {"PK": {"S": "APP#STATS"}, "SK": {"S": "LEAGUE_COUNT"}},
                         "UpdateExpression": "SET #c = #c - :val",
                         "ConditionExpression": "attribute_exists(PK) AND #c > :zero",
@@ -327,6 +402,15 @@ def delete_league(
                 },
             ]
         )
+
+        # Delete all MATCHUPS items in batches of 25 (DynamoDB batch_write_item limit)
+        for i in range(0, len(matchup_delete_keys), 25):
+            batch = matchup_delete_keys[i : i + 25]
+            dynamodb_client.batch_write_item(
+                RequestItems={
+                    table_name: [{"DeleteRequest": {"Key": key}} for key in batch]
+                }
+            )
         logger.info("Deleted league items from DynamoDB")
 
         # After DB delete, delete raw API data files from S3
