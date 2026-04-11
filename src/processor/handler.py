@@ -259,7 +259,7 @@ def write_metadata_items(league_id: str, refresh: bool) -> None:
                             "PK": {"S": "APP#STATS"},
                             "SK": {"S": "LEAGUE_COUNT"},
                         },
-                        "UpdateExpression": "ADD count :inc",
+                        "UpdateExpression": "ADD league_count :inc",
                         "ExpressionAttributeValues": {":inc": {"N": "1"}},
                     }
                 },

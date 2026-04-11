@@ -42,14 +42,14 @@ metadata record is updated.
 |---|---|---|---|
 | `PK` | String | Yes | `APP#STATS` |
 | `SK` | String | Yes | `LEAGUE_COUNT` |
-| `count` | Integer | Yes | The number of leagues onboarded |
+| `league_count` | Integer | Yes | The number of leagues onboarded |
 
 **Example:**
 ```json
 {
   "PK": "APP#STATS",
   "SK": "LEAGUE_COUNT",
-  "count": 10
+  "league_count": 10
 }
 ```
 </details>
