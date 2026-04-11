@@ -11,7 +11,7 @@ from typing import Any, Callable, Iterator
 import boto3
 import botocore.exceptions
 import duckdb
-import polars as pl
+import pandas as pd
 
 from logging_utils import logger
 from queries import QUERIES
@@ -150,7 +150,7 @@ def register_raw_data(raw_data: list[dict], con: duckdb.DuckDBPyConnection) -> N
     grouped["matchups"] = all_matchups
 
     for data_type, rows in grouped.items():
-        df = pl.DataFrame(rows)
+        df = pd.DataFrame(rows)
         con.register(data_type, df)
 
 
