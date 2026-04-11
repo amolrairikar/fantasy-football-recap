@@ -35,7 +35,7 @@ All items (with the exception of LEAGUE_COUNT) share the same partition key form
 <details>
 <summary><b>LEAGUE_COUNT</b></summary>
 
-Counter representing the total number of leagues onboarded to the app. Written after the
+Counter representing the total number of leagues onboarded to the app. Incremented after the
 metadata record is updated.
 
 | Attribute | Type | Required | Description |
