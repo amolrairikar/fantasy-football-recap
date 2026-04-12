@@ -196,6 +196,39 @@ def get_league_metadata(canonical_league_id: str) -> dict:
     return item
 
 
+def delete_prefixed_items(table_name: str, pk_value: str, sk_prefix: str) -> None:
+    """
+    Queries and deletes all items sharing a PK and a specific SK prefix.
+
+    Args:
+        table_name: The name of the DynamoDB table.
+        pk_value: The value of the PK to match.
+        sk_prefix: The prefix of the SK to match for deletion.
+    """
+    response = dynamodb_client.query(
+        TableName=table_name,
+        KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
+        ExpressionAttributeValues={
+            ":pk": {"S": pk_value},
+            ":prefix": {"S": sk_prefix},
+        },
+        ProjectionExpression="PK, SK",
+    )
+    items = response.get("Items", [])
+
+    if not items:
+        return
+
+    for i in range(0, len(items), 25):
+        batch = items[i : i + 25]
+        dynamodb_client.batch_write_item(
+            RequestItems={
+                table_name: [{"DeleteRequest": {"Key": item}} for item in batch]
+            }
+        )
+    logger.info(f"Deleted {len(items)} items with prefix {sk_prefix}")
+
+
 @app.get("/", status_code=status.HTTP_200_OK)
 def root() -> APIResponse:
     """Makes health check to API root URL."""
@@ -347,17 +380,7 @@ def delete_league(
     )
     try:
         table_name = os.environ["DYNAMODB_TABLE_NAME"]
-        matchups_response = dynamodb_client.query(
-            TableName=table_name,
-            KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
-            ExpressionAttributeValues={
-                ":pk": {"S": f"LEAGUE#{canonical_league_id}"},
-                ":prefix": {"S": "MATCHUPS#"},
-            },
-            ProjectionExpression="PK, SK",
-        )
-        matchup_delete_keys = [item for item in matchups_response.get("Items", [])]
-
+        league_pk = f"LEAGUE#{canonical_league_id}"
         dynamodb_client.transact_write_items(
             TransactItems=[
                 {
@@ -373,45 +396,19 @@ def delete_league(
                     "Delete": {
                         "TableName": table_name,
                         "Key": {
-                            "PK": {"S": f"LEAGUE#{canonical_league_id}"},
-                            "SK": {"S": "TEAMS"},
-                        },
-                    }
-                },
-                {
-                    "Delete": {
-                        "TableName": table_name,
-                        "Key": {
                             "PK": {"S": f"LEAGUE#{leagueId}#PLATFORM#{platform.value}"},
                             "SK": {"S": "LEAGUE_LOOKUP"},
-                        },
-                    }
-                },
-                {
-                    "Update": {
-                        "TableName": table_name,
-                        "Key": {"PK": {"S": "APP#STATS"}, "SK": {"S": "LEAGUE_COUNT"}},
-                        "UpdateExpression": "SET #c = #c - :val",
-                        "ConditionExpression": "attribute_exists(PK) AND #c > :zero",
-                        "ExpressionAttributeNames": {"#c": "count"},
-                        "ExpressionAttributeValues": {
-                            ":val": {"N": "1"},
-                            ":zero": {"N": "0"},
                         },
                     }
                 },
             ]
         )
 
-        # Delete all MATCHUPS items in batches of 25 (DynamoDB batch_write_item limit)
-        for i in range(0, len(matchup_delete_keys), 25):
-            batch = matchup_delete_keys[i : i + 25]
-            dynamodb_client.batch_write_item(
-                RequestItems={
-                    table_name: [{"DeleteRequest": {"Key": key}} for key in batch]
-                }
+        prefixes_to_clear = ["MATCHUPS#", "TEAMS#", "STANDINGS#"]
+        for prefix in prefixes_to_clear:
+            delete_prefixed_items(
+                table_name=table_name, pk_value=league_pk, sk_prefix=prefix
             )
-        logger.info("Deleted league items from DynamoDB")
 
         # After DB delete, delete raw API data files from S3
         s3_prefix = f"raw-api-data/{canonical_league_id}/"
