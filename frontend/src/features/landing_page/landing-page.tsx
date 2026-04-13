@@ -298,7 +298,7 @@ export default function LeagueQLLanding() {
         >
           <DialogTitle className="sr-only">Sign in to LeagueQL</DialogTitle>
           <SignIn
-            routing="virtual"
+            routing="hash"
             forceRedirectUrl="/league"
             signUpForceRedirectUrl="/league"
           />
