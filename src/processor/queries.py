@@ -144,7 +144,7 @@ QUERIES = {
     FROM processed_performance p
     INNER JOIN teams_output t
         ON (p.team_id = t.team_id AND p.season = t.season)
-    GROUP BY p.season, p.team_id, p.owner_id
+    GROUP BY p.season, p.team_id, p.owner_id, t.team_name, t.team_logo, t.display_name
     ORDER BY season DESC, wins DESC, total_pf DESC;
     """,
 }
