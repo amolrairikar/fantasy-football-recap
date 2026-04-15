@@ -387,7 +387,9 @@ module "api-lambda-role" {
         ]
         Resource = [
           module.dynamodb.primary_table_arn,
-          module.dynamodb.replica_table_arn
+          module.dynamodb.replica_table_arn,
+          "${module.dynamodb.primary_table_arn}/index/GSI1",
+          "${module.dynamodb.replica_table_arn}/index/GSI1"
         ]
       },
       {
