@@ -68,12 +68,10 @@ export default function LeagueConnect() {
     const apiPlatform = data.platform.toUpperCase() as 'ESPN' | 'SLEEPER';
 
     let requestType: 'ONBOARD' | 'REFRESH';
-    let existingSeasons: string[] = [];
 
     try {
-      const leagueData = await getLeague(data.leagueId, apiPlatform);
+      await getLeague(data.leagueId, apiPlatform);
       requestType = 'REFRESH';
-      existingSeasons = leagueData.data.seasons;
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
         clearApiError();
@@ -83,24 +81,12 @@ export default function LeagueConnect() {
       }
     }
 
-    const mostRecentSeason = [...existingSeasons].sort().at(-1);
     const body: OnboardRequest = {
       leagueId: data.leagueId,
       platform: apiPlatform,
-      season:
-        requestType === 'REFRESH'
-          ? mostRecentSeason
-          : data.platform === 'espn'
-            ? data.latestSeason
-            : undefined,
-      s2:
-        data.platform === 'espn' && requestType === 'ONBOARD'
-          ? data.espnS2
-          : undefined,
-      swid:
-        data.platform === 'espn' && requestType === 'ONBOARD'
-          ? data.swid
-          : undefined,
+      season: data.platform === 'espn' ? data.latestSeason : undefined,
+      s2: data.platform === 'espn' ? data.espnS2 : undefined,
+      swid: data.platform === 'espn' ? data.swid : undefined,
     };
 
     await onboardLeague(requestType, body);
@@ -122,7 +108,7 @@ export default function LeagueConnect() {
             document.cookie = `leagueId=${encodeURIComponent(data.leagueId)}; path=/`;
             document.cookie = `leaguePlatform=${encodeURIComponent(apiPlatform)}; path=/`;
             document.cookie = `leagueSeasons=${encodeURIComponent(JSON.stringify(leagueData.data.seasons))}; path=/`;
-            void navigate('/home');
+            void navigate('/standings');
           })();
         } else {
           setTimeout(() => setPollStatus('idle'), 10000);

@@ -312,6 +312,7 @@ module "processing-lambda-role" {
         Effect = "Allow"
         Action = [
           "s3:GetObject",
+          "s3:GetObjectVersion",
         ]
         Resource = [
           "${local.primary_bucket_arn}/raw-api-data/*",
