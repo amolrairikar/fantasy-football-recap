@@ -4,6 +4,9 @@ export interface SeasonStandingsItem {
   season: string;
   team_id: string;
   owner_id: string;
+  team_name: string;
+  team_logo: string;
+  owner_username: string;
   games_played: number;
   wins: number;
   losses: number;
