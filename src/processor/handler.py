@@ -51,19 +51,23 @@ def sanitize_value(val: Any) -> Any:
     return val
 
 
-def read_s3_object(bucket: str, key: str) -> Any:
+def read_s3_object(bucket: str, key: str, version_id: str | None = None) -> Any:
     """
     Reads an object from S3 with the given bucket and key.
 
     Args:
         bucket: The S3 bucket containing the object
         key: The key corresponding to the object location within the bucket.
+        version_id: Optional S3 version ID to fetch a specific version.
 
     Returns:
         The loaded object in JSON format.
     """
+    kwargs: dict[str, Any] = {"Bucket": bucket, "Key": key}
+    if version_id:
+        kwargs["VersionId"] = version_id
     try:
-        response = s3_client.get_object(Bucket=bucket, Key=key)
+        response = s3_client.get_object(**kwargs)
         file_content = response["Body"].read().decode("utf-8")
         return json.loads(file_content)
     except botocore.exceptions.ClientError as e:
@@ -71,25 +75,55 @@ def read_s3_object(bucket: str, key: str) -> Any:
         raise e
 
 
-def has_prior_versions(bucket: str, key: str) -> bool:
+def get_previous_version_id(bucket: str, key: str) -> str | None:
     """
-    Checks if the specified S3 object has more than one version.
+    Returns the VersionId of the second-most-recent version of an S3 object,
+    or None if no prior version exists.
 
     Args:
         bucket: The S3 bucket containing the object.
         key: The key corresponding to the object location within the bucket.
 
     Returns:
-        True if there are multiple versions of the object, False otherwise.
+        The VersionId string of the previous version, or None.
     """
     try:
         response = s3_client.list_object_versions(Bucket=bucket, Prefix=key)
-        versions = response.get("Versions", [])
-        exact_versions = [v for v in versions if v["Key"] == key]
-        return len(exact_versions) > 1
+        versions = [v for v in response.get("Versions", []) if v["Key"] == key]
+        versions.sort(key=lambda v: v["LastModified"], reverse=True)
+        if len(versions) > 1:
+            return versions[1]["VersionId"]
+        return None
     except Exception as e:
-        logger.error(f"Error checking versions for {key}: {e}")
-        return False
+        logger.error(f"Error fetching version history for {key}: {e}")
+        return None
+
+
+def resolve_seasons_to_process(
+    current_seasons: list[str],
+    previous_seasons: list[str] | None,
+) -> list[str]:
+    """
+    Determines which seasons the processor should recompute.
+
+    - No previous manifest (initial onboard): all seasons.
+    - New season detected: only the new season(s).
+    - Same seasons (in-season refresh): only the last season.
+
+    Args:
+        current_seasons: Ordered list of seasons from the current manifest.
+        previous_seasons: Ordered list of seasons from the previous manifest,
+            or None if no prior manifest exists.
+
+    Returns:
+        List of season identifiers to process.
+    """
+    if previous_seasons is None:
+        return current_seasons
+    new_seasons = sorted(set(current_seasons) - set(previous_seasons))
+    if new_seasons:
+        return new_seasons
+    return [current_seasons[-1]]
 
 
 def register_raw_data(raw_data: list[dict], con: duckdb.DuckDBPyConnection) -> None:
@@ -279,21 +313,40 @@ def lambda_handler(event, context) -> None:
 
     bucket = event["Records"][0]["s3"]["bucket"]["name"]
     key = event["Records"][0]["s3"]["object"]["key"]
-    prior_versions_exist = has_prior_versions(bucket=bucket, key=key)
-    logger.info(f"Object {key} has prior versions: {prior_versions_exist}")
     canonical_league_id = key.split("/")[1]
+
+    previous_version_id = get_previous_version_id(bucket=bucket, key=key)
+    logger.info("Previous version ID for %s: %s", key, previous_version_id)
 
     manifest = read_s3_object(bucket=bucket, key=key)
     logger.info("Successfully read manifest file")
     platform = next(iter(manifest))
-    seasons = manifest[platform]
+    all_seasons = manifest[platform]
     prefix = "/".join(key.split("/")[:2])
+
+    previous_seasons = None
+    if previous_version_id:
+        previous_manifest = read_s3_object(
+            bucket=bucket, key=key, version_id=previous_version_id
+        )
+        previous_seasons = previous_manifest.get(platform, [])
+
+    seasons_to_process = resolve_seasons_to_process(
+        current_seasons=all_seasons,
+        previous_seasons=previous_seasons,
+    )
+    logger.info(
+        "Seasons to process: %s (all seasons in manifest: %s)",
+        seasons_to_process,
+        all_seasons,
+    )
+
     raw_data: list[dict[str, Any]] = []
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         future_to_season = {
             executor.submit(read_s3_object, bucket, f"{prefix}/{s}.json"): s
-            for s in seasons
+            for s in seasons_to_process
         }
         for future in as_completed(future_to_season):
             season = future_to_season[future]
@@ -338,4 +391,6 @@ def lambda_handler(event, context) -> None:
             items=dataframe_to_dynamo_items(rel=rel, schema=schema),
         )
 
-    write_metadata_items(league_id=canonical_league_id, refresh=prior_versions_exist)
+    write_metadata_items(
+        league_id=canonical_league_id, refresh=previous_version_id is not None
+    )
