@@ -1,5 +1,5 @@
 import { UserButton } from '@clerk/react';
-import { FlaskConical, TableProperties, Trash2 } from 'lucide-react';
+import { FlaskConical, RefreshCw, TableProperties, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -105,6 +105,18 @@ export function AppSidebar() {
           <SidebarGroupLabel>Settings</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  tooltip="Refresh League"
+                  className="cursor-pointer"
+                >
+                  <Link to="/connect_league">
+                    <RefreshCw />
+                    <span>Refresh League</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <Dialog
                   open={dialogOpen}
