@@ -117,9 +117,13 @@ export default function LeagueConnect() {
         clearTimeout(timeoutId);
         setPollStatus(status);
         if (status === 'success') {
-          document.cookie = `leagueId=${encodeURIComponent(data.leagueId)}; path=/`;
-          document.cookie = `leaguePlatform=${encodeURIComponent(apiPlatform)}; path=/`;
-          void navigate('/home');
+          void (async () => {
+            const leagueData = await getLeague(data.leagueId, apiPlatform);
+            document.cookie = `leagueId=${encodeURIComponent(data.leagueId)}; path=/`;
+            document.cookie = `leaguePlatform=${encodeURIComponent(apiPlatform)}; path=/`;
+            document.cookie = `leagueSeasons=${encodeURIComponent(JSON.stringify(leagueData.data.seasons))}; path=/`;
+            void navigate('/home');
+          })();
         } else {
           setTimeout(() => setPollStatus('idle'), 10000);
         }

@@ -35,9 +35,10 @@ export default function LeagueSelection() {
     setError(null);
 
     try {
-      await getLeague(leagueId.trim(), platform);
+      const leagueData = await getLeague(leagueId.trim(), platform);
       document.cookie = `leagueId=${encodeURIComponent(leagueId.trim())}; path=/`;
       document.cookie = `leaguePlatform=${encodeURIComponent(platform)}; path=/`;
+      document.cookie = `leagueSeasons=${encodeURIComponent(JSON.stringify(leagueData.data.seasons))}; path=/`;
       void navigate('/home');
     } catch (err) {
       const message =

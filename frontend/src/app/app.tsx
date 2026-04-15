@@ -2,6 +2,7 @@ import { useUser } from '@clerk/react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import Header from '@/components/header';
+import { ModeToggle } from '@/components/mode-toggle';
 import {
   SidebarInset,
   SidebarProvider,
@@ -9,9 +10,9 @@ import {
 } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import LeagueConnect from '@/features/connect_league/league-connect';
-import Home from '@/features/home/home';
 import LeagueQLLanding from '@/features/landing_page/landing-page';
 import LeagueSelection from '@/features/league_selection/league-selection';
+import SeasonStandings from '@/features/season_standings/season-standings';
 import { AppSidebar } from '@/features/sidebar/app-sidebar';
 import Test from '@/features/test/test';
 
@@ -22,7 +23,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <AppSidebar />
         <SidebarInset>
           <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger />
+            <SidebarTrigger className="cursor-pointer" />
+            <div className="ml-auto">
+              <ModeToggle />
+            </div>
           </header>
           {children}
         </SidebarInset>
@@ -78,7 +82,7 @@ function App() {
           element={
             <ProtectedRoute>
               <AppLayout>
-                <Home />
+                <SeasonStandings />
               </AppLayout>
             </ProtectedRoute>
           }
