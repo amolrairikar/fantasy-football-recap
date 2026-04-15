@@ -93,14 +93,8 @@ export default function LeagueConnect() {
           : data.platform === 'espn'
             ? data.latestSeason
             : undefined,
-      s2:
-        data.platform === 'espn' && requestType === 'ONBOARD'
-          ? data.espnS2
-          : undefined,
-      swid:
-        data.platform === 'espn' && requestType === 'ONBOARD'
-          ? data.swid
-          : undefined,
+      s2: data.platform === 'espn' ? data.espnS2 : undefined,
+      swid: data.platform === 'espn' ? data.swid : undefined,
     };
 
     await onboardLeague(requestType, body);
@@ -122,7 +116,7 @@ export default function LeagueConnect() {
             document.cookie = `leagueId=${encodeURIComponent(data.leagueId)}; path=/`;
             document.cookie = `leaguePlatform=${encodeURIComponent(apiPlatform)}; path=/`;
             document.cookie = `leagueSeasons=${encodeURIComponent(JSON.stringify(leagueData.data.seasons))}; path=/`;
-            void navigate('/home');
+            void navigate('/standings');
           })();
         } else {
           setTimeout(() => setPollStatus('idle'), 10000);
