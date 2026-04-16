@@ -80,39 +80,35 @@ def build_season_recap_prompt(
             f"{champion_row['owner_username']} ({champion_row['team_name']})"
         )
         task_description = (
-            f"Write a 2-3 paragraph season recap for the {season} fantasy football season. "
-            f"The season champion was {champion_name} — make sure to prominently celebrate "
-            f"(and lightly roast) their path to glory."
-        )
-        focus_areas = (
-            "Cover: the champion's dominant (or lucky) run, how the rest of the league "
-            "embarrassed themselves trying to stop it, notable scoring performances worth "
-            "bragging or crying about, and any matchups so painful they deserve to live in infamy."
+            f"Write exactly 3 paragraphs recapping the {season} fantasy football season. "
+            f"Note: the playoffs began in week {playoff_start_week}.\n\n"
+            f"Paragraph 1 — The Champion: Focus on {champion_name}, who won the title. "
+            f"Celebrate and lightly roast their path to glory — were they dominant or lucky?\n\n"
+            f"Paragraph 2 — The Playoffs: Recap how the playoff bracket played out. "
+            f"Who had a memorable run? Who choked? Any shocking upsets?\n\n"
+            f"Paragraph 3 — Season Highlights & Lowlights: Cover the most notable moments "
+            f"from the regular season — big scoring weeks, embarrassing losses, bad beats, "
+            f"and anything else worth remembering (or forgetting)."
         )
     else:
         task_description = (
-            f"Write a 2-3 paragraph mid-season report for the {season} fantasy football season, "
-            f"which is still in progress. The playoffs have not been decided yet."
-        )
-        focus_areas = (
-            "Cover: who is looking like a lock for the playoffs and why they're either "
-            "genuinely good or just riding their luck, who is on the outside looking in and "
-            "what miracle they'd need, the most embarrassing collapses so far, and the "
-            "scoreboard moments that made everyone question their life choices."
+            f"Write exactly 3 paragraphs as a mid-season report for the {season} fantasy football season, "
+            f"which is still in progress. Note: the playoffs begin in week {playoff_start_week}.\n\n"
+            f"Paragraph 1 — Playoff Picture: Who is locked in, who is on the bubble, "
+            f"and who is already cooked?\n\n"
+            f"Paragraph 2 — Best Teams So Far: Who has been genuinely good vs. just lucky? "
+            f"Break down the contenders.\n\n"
+            f"Paragraph 3 — Highlights & Lowlights: The most notable moments so far — "
+            f"big scores, brutal losses, bad beats, and anything else worth remembering."
         )
 
     prompt = (
         f"You are a fantasy football analyst with the wit of a late-night comedian and the "
-        f"insight of a seasoned sports writer. {task_description}\n\n"
-        f"Note: in fantasy football, the playoffs begin in week {playoff_start_week} "
-        f"of the {season} season. Weeks before that are the regular season.\n\n"
-        f"{focus_areas} "
-        f"Be funny and roast-y — call out bad beats, questionable decisions, and anyone "
-        f"who fluked their way to a win. But ground every joke in the actual data. "
-        f"Do not use headers, titles, or bullet points — write in flowing prose only. "
-        f"Do not begin with a title or heading of any kind (e.g. do not start with "
-        f"'# {season} Fantasy Football Season Recap' or any variation). "
-        f"Separate each paragraph with a blank line.\n\n"
+        f"insight of a seasoned sports writer. Be funny and roast-y — ground every joke in "
+        f"the actual data. Do not use headers, titles, or bullet points. Do not begin with a "
+        f"title or heading of any kind. Write in flowing prose only, with a blank line between "
+        f"each paragraph.\n\n"
+        f"{task_description}\n\n"
         f"Season Standings:\n{chr(10).join(standings_lines)}\n\n"
         f"Weekly Matchups:\n{chr(10).join(matchup_lines)}\n\n"
         "Write the recap now:"
