@@ -30,14 +30,19 @@ def build_season_recap_prompt(
         key=lambda r: (-r.get("wins", 0), -float(r.get("total_pf", 0))),
     )
 
-    header = "Rank | Owner | Team | Record | Avg PF | Avg PA | Win% | Win% vs League"
-    divider = "-" * 75
+    champion_row = next((r for r in standings_rows if r.get("champion") == "Yes"), None)
+    season_complete = champion_row is not None
+
+    header = "Rank | Owner | Team | Record | Avg PF | Avg PA | Win% | Win% vs League | Champion"
+    divider = "-" * 90
     standings_lines = [header, divider]
     for rank, row in enumerate(standings_sorted, 1):
+        champion_marker = " *** CHAMPION ***" if row.get("champion") == "Yes" else ""
         standings_lines.append(
             f"{rank} | {row['owner_username']} | {row['team_name']} | "
             f"{row['record']} | {float(row['avg_pf']):.2f} | {float(row['avg_pa']):.2f} | "
             f"{float(row['win_pct']):.3f} | {float(row['win_pct_vs_league']):.3f}"
+            f"{champion_marker}"
         )
 
     team_label: dict[str, str] = {
@@ -69,15 +74,42 @@ def build_season_recap_prompt(
             )
 
     playoff_start_week = 15 if int(season) >= 2021 else 14
+
+    if season_complete:
+        champion_name = (
+            f"{champion_row['owner_username']} ({champion_row['team_name']})"
+        )
+        task_description = (
+            f"Write a 2-3 paragraph season recap for the {season} fantasy football season. "
+            f"The season champion was {champion_name} — make sure to prominently celebrate "
+            f"(and lightly roast) their path to glory."
+        )
+        focus_areas = (
+            "Cover: the champion's dominant (or lucky) run, how the rest of the league "
+            "embarrassed themselves trying to stop it, notable scoring performances worth "
+            "bragging or crying about, and any matchups so painful they deserve to live in infamy."
+        )
+    else:
+        task_description = (
+            f"Write a 2-3 paragraph mid-season report for the {season} fantasy football season, "
+            f"which is still in progress. The playoffs have not been decided yet."
+        )
+        focus_areas = (
+            "Cover: who is looking like a lock for the playoffs and why they're either "
+            "genuinely good or just riding their luck, who is on the outside looking in and "
+            "what miracle they'd need, the most embarrassing collapses so far, and the "
+            "scoreboard moments that made everyone question their life choices."
+        )
+
     prompt = (
-        f"You are a fantasy football analyst. Write a 2-3 paragraph season recap for "
-        f"the {season} fantasy football season.\n\n"
-        f"Note: in fantasy football, the playoffs began in week {playoff_start_week} "
+        f"You are a fantasy football analyst with the wit of a late-night comedian and the "
+        f"insight of a seasoned sports writer. {task_description}\n\n"
+        f"Note: in fantasy football, the playoffs begin in week {playoff_start_week} "
         f"of the {season} season. Weeks before that are the regular season.\n\n"
-        "Cover: the champion and their performance, notable scoring leaders, interesting "
-        "matchup moments, and the overall character of the season. Keep the tone engaging "
-        "and conversational, as if writing for a league newsletter. Do not use headers or "
-        "bullet points — write in flowing prose only.\n\n"
+        f"{focus_areas} "
+        f"Be funny and roast-y — call out bad beats, questionable decisions, and anyone "
+        f"who fluked their way to a win. But ground every joke in the actual data. "
+        f"Do not use headers or bullet points — write in flowing prose only.\n\n"
         f"Season Standings:\n{chr(10).join(standings_lines)}\n\n"
         f"Weekly Matchups:\n{chr(10).join(matchup_lines)}\n\n"
         "Write the recap now:"
