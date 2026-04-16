@@ -16,6 +16,7 @@ export interface MatchupItem {
   team_b_id: string;
   team_b_score: number;
   playoff_tier_type: string;
+  playoff_round: string | null;
   winner: string;
   loser: string;
   week: string;

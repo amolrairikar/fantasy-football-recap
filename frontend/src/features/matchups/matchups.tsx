@@ -23,6 +23,7 @@ interface ProcessedMatchup {
   teamA: TeamSide;
   teamB: TeamSide;
   week: number;
+  playoffRound: string | null;
 }
 
 interface MatchupsData {
@@ -70,6 +71,7 @@ function processData(teams: TeamItem[], matchups: MatchupItem[]): MatchupsData {
         avatarColor: colorMap.get(m.team_b_id) ?? avatarColor(1),
       },
       week,
+      playoffRound: m.playoff_round ?? null,
     };
 
     (byWeek[week] ??= []).push(pm);
@@ -109,10 +111,15 @@ function MatchupCard({
       }`}
       onClick={onClick}
     >
-      <div className="px-3.5 pt-2.5 pb-0 flex items-center">
+      <div className="px-3.5 pt-2.5 pb-0 flex items-center justify-between">
         <span className="text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
           Week {matchup.week}
         </span>
+        {matchup.playoffRound !== null && (
+          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#ede9fe] text-[#4338ca]">
+            {matchup.playoffRound}
+          </span>
+        )}
       </div>
       <div className="p-3.5 pt-3">
         <div className="flex items-center justify-between">
