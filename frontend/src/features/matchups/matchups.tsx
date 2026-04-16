@@ -1,7 +1,7 @@
 import { Suspense, use, useMemo, useState } from 'react';
 
 import { Skeleton } from '@/components/ui/skeleton';
-import { avatarColor, TeamAvatar } from '@/components/ui/team-avatar';
+import { avatarColor, TeamAvatar } from '@/components/team-avatar';
 import SeasonSelect from '@/features/season_select/season-select';
 import {
   getSeasonMatchups,
@@ -116,7 +116,14 @@ function MatchupCard({
           Week {matchup.week}
         </span>
         {matchup.playoffRound !== null && (
-          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#ede9fe] text-[#4338ca]">
+          <span
+            className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+            style={
+              matchup.playoffRound === 'Losers Bracket'
+                ? { background: '#f1f5f9', color: '#64748b' }
+                : { background: '#fef3c7', color: '#92400e' }
+            }
+          >
             {matchup.playoffRound}
           </span>
         )}
