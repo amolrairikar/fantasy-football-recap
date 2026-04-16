@@ -1,8 +1,9 @@
 import asyncio
+import random
 from collections import defaultdict
 from datetime import datetime
 
-from anthropic import AsyncAnthropic
+from anthropic import AsyncAnthropic, RateLimitError
 from anthropic.types import TextBlock
 
 from logging_utils import logger
@@ -81,13 +82,19 @@ def build_season_recap_prompt(
     return prompt
 
 
+_MAX_RETRIES = 4
+_BASE_DELAY = 2.0
+_MAX_DELAY = 60.0
+
+
 async def generate_single_recap(
     client: AsyncAnthropic,
     season: str,
     prompt: str,
 ) -> dict:
     """
-    Call Claude to generate a recap for a single season.
+    Call Claude to generate a recap for a single season, with exponential
+    backoff retries on rate limit errors (HTTP 429).
 
     Args:
         client: An AsyncAnthropic client instance.
@@ -97,19 +104,40 @@ async def generate_single_recap(
     Returns:
         A dict with recap_text, generated_at, and season.
     """
-    message = await client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    content_block = message.content[0]
-    if not isinstance(content_block, TextBlock):
-        raise ValueError(f"Unexpected content block type: {type(content_block)}")
-    return {
-        "season": season,
-        "recap_text": content_block.text,
-        "generated_at": datetime.now().isoformat() + "Z",
-    }
+    delay = _BASE_DELAY
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            message = await client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=1024,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            content_block = message.content[0]
+            if not isinstance(content_block, TextBlock):
+                raise ValueError(
+                    f"Unexpected content block type: {type(content_block)}"
+                )
+            return {
+                "season": season,
+                "recap_text": content_block.text,
+                "generated_at": datetime.now().isoformat() + "Z",
+            }
+        except RateLimitError:
+            if attempt == _MAX_RETRIES:
+                raise
+            jitter = random.uniform(0, delay * 0.1)
+            wait = delay + jitter
+            logger.warning(
+                "Rate limited generating recap for season %s, retrying in %.1fs "
+                "(attempt %d/%d)",
+                season,
+                wait,
+                attempt + 1,
+                _MAX_RETRIES,
+            )
+            await asyncio.sleep(wait)
+            delay = min(delay * 2, _MAX_DELAY)
+    raise RuntimeError("generate_single_recap exited retry loop without returning")
 
 
 async def generate_recaps_for_all_seasons(

@@ -52,7 +52,7 @@ module "processor_lambda" {
   role_arn             =  var.processor_lambda_role_arn
   handler              = "handler.lambda_handler"
   memory_size          = 2048
-  timeout              = 60
+  timeout              = 120
   log_retention        = 7
   s3_bucket            = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/processor-lambda.zip"
