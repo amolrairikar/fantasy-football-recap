@@ -20,6 +20,7 @@ export interface SeasonStandingsItem {
   total_pa: number;
   avg_pf: number;
   avg_pa: number;
+  champion: string;
 }
 
 export interface GetSeasonStandingsResponse {
@@ -38,4 +39,25 @@ export function getSeasonStandings(
   return apiClient.get<GetSeasonStandingsResponse>(
     `/leagues/${leagueId}/query?${params}`,
   );
+}
+
+export interface SeasonRecapItem {
+  recap_text: string;
+  generated_at: string;
+  season: string;
+}
+
+export async function getSeasonRecap(
+  leagueId: string,
+  platform: 'ESPN' | 'SLEEPER',
+  season: string,
+): Promise<SeasonRecapItem | null> {
+  try {
+    const res = await apiClient.get<{ data: SeasonRecapItem[] }>(
+      `/leagues/${leagueId}/query?platform=${platform}&queryType=AI_RECAP%23${season}`,
+    );
+    return res.data[0] ?? null;
+  } catch {
+    return null; // 404 = not yet generated; treat as null
+  }
 }

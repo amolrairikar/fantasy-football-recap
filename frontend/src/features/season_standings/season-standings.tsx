@@ -10,7 +10,9 @@ import {
 } from '@/components/ui/tooltip';
 import SeasonSelect from '@/features/season_select/season-select';
 import {
+  type SeasonRecapItem,
   type SeasonStandingsItem,
+  getSeasonRecap,
   getSeasonStandings,
 } from '@/features/season_standings/api-calls';
 
@@ -78,6 +80,25 @@ function initials(username: string): string {
 type StandingsResult =
   | { ok: true; data: SeasonStandingsItem[] }
   | { ok: false; error: string };
+
+function RecapBody({ promise }: { promise: Promise<SeasonRecapItem | null> }) {
+  const result = use(promise);
+  if (!result) {
+    return (
+      <p className="text-[13px] leading-[1.75] text-muted-foreground border-t border-border/50 pt-3">
+        Recap not yet available for this season.
+      </p>
+    );
+  }
+  const paragraphs = result.recap_text.split(/\n\n+/).filter(Boolean);
+  return (
+    <div className="text-[13px] leading-[1.75] text-muted-foreground border-t border-border/50 pt-3 space-y-3">
+      {paragraphs.map((p, i) => (
+        <p key={i}>{p}</p>
+      ))}
+    </div>
+  );
+}
 
 function StandingsBody({ promise }: { promise: Promise<StandingsResult> }) {
   const result = use(promise);
@@ -156,7 +177,7 @@ function AwardsGrid({ promise }: { promise: Promise<StandingsResult> }) {
 
   const standings = result.data;
 
-  const champion = standings[0];
+  const champion = standings.find((s) => s.champion === 'Yes') ?? null;
   const highScorer = standings.reduce((a, b) => (a.avg_pf > b.avg_pf ? a : b));
   const luckiest = standings.reduce((a, b) =>
     a.win_pct - a.win_pct_vs_league > b.win_pct - b.win_pct_vs_league ? a : b,
@@ -201,18 +222,31 @@ function AwardsGrid({ promise }: { promise: Promise<StandingsResult> }) {
           </span>
         </div>
         <div>
-          <div className="text-[15px] font-medium text-foreground font-mono">
-            {champion.owner_username}
-          </div>
-          <div className="text-[12px] text-muted-foreground">
-            {champion.team_name}
-          </div>
-          <div
-            className="text-[11px] font-medium mt-0.5"
-            style={{ color: '#534AB7' }}
-          >
-            {champion.record} · {champion.win_pct.toFixed(3)} Win%
-          </div>
+          {champion ? (
+            <>
+              <div className="text-[15px] font-medium text-foreground font-mono">
+                {champion.owner_username}
+              </div>
+              <div className="text-[12px] text-muted-foreground">
+                {champion.team_name}
+              </div>
+              <div
+                className="text-[11px] font-medium mt-0.5"
+                style={{ color: '#534AB7' }}
+              >
+                {champion.record} · {champion.win_pct.toFixed(3)} Win%
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-[15px] font-medium text-foreground font-mono">
+                TBD
+              </div>
+              <div className="text-[12px] text-muted-foreground">
+                Season in progress
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -386,6 +420,14 @@ export default function SeasonStandings() {
     [leagueId, platform, selectedSeason],
   );
 
+  const recapPromise = useMemo(
+    (): Promise<SeasonRecapItem | null> =>
+      leagueId && selectedSeason
+        ? getSeasonRecap(leagueId, platform, selectedSeason)
+        : Promise.resolve(null),
+    [leagueId, platform, selectedSeason],
+  );
+
   return (
     <div className="flex flex-1 flex-col p-6 overflow-auto">
       <div className="max-w-225 mx-auto w-full">
@@ -497,18 +539,9 @@ export default function SeasonStandings() {
               LeagueQL AI
             </span>
           </div>
-          <p className="text-[13px] leading-[1.75] text-muted-foreground border-t border-border/50 pt-3">
-            A dominant wire-to-wire run defined the {selectedSeason} season. The
-            league champion led in total points and never relinquished their
-            grip on first place after the opening weeks, clinching the title
-            with time to spare. The most dramatic storyline belonged to a team
-            that clawed back from an early deficit on the strength of a savvy
-            waiver-wire run in the second half of the year. The high scorer put
-            up the single best offensive output of the season but costly losses
-            in close matchups kept them out of the championship round.
-            Meanwhile, the cellar dweller struggled with injury luck all season
-            and finished just short of the final playoff spot.
-          </p>
+          <Suspense fallback={<Skeleton className="h-20 w-full mt-3" />}>
+            <RecapBody promise={recapPromise} />
+          </Suspense>
         </div>
       </div>
     </div>

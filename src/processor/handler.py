@@ -391,6 +391,34 @@ def lambda_handler(event, context) -> None:
             items=dataframe_to_dynamo_items(rel=rel, schema=schema),
         )
 
+    standings_df = con.sql("SELECT * FROM STANDINGS_output").df()
+    matchups_df = con.sql("SELECT * FROM MATCHUPS_output").df()
+
+    standings_by_season: dict[str, list[dict]] = {  # noqa: F841
+        str(season): group.to_dict("records")
+        for season, group in standings_df.groupby("season")
+    }
+    matchups_by_season: dict[str, list[dict]] = {  # noqa: F841
+        str(season): group.to_dict("records")
+        for season, group in matchups_df.groupby("season")
+    }
+
     write_metadata_items(
         league_id=canonical_league_id, refresh=previous_version_id is not None
     )
+
+    # TODO: uncomment after deploying app to avoid wasted API costs
+    # try:  # noqa: ERA001
+    #     asyncio.run(  # noqa: ERA001
+    #         generate_recaps_for_all_seasons(  # noqa: ERA001
+    #             table=table,  # noqa: ERA001
+    #             api_key=os.environ["ANTHROPIC_API_KEY"],  # noqa: ERA001
+    #             pk=f"LEAGUE#{canonical_league_id}",  # noqa: ERA001
+    #             seasons=seasons_to_process,  # noqa: ERA001
+    #             standings_by_season=standings_by_season,  # noqa: ERA001
+    #             matchups_by_season=matchups_by_season,  # noqa: ERA001
+    #         )  # noqa: ERA001
+    #     )  # noqa: ERA001
+    # except Exception as e:  # noqa: ERA001
+    #     logger.error("AI recap generation failed: %s", e)  # noqa: ERA001
+    #     # Do not re-raise — recap failure should not fail the processor run
