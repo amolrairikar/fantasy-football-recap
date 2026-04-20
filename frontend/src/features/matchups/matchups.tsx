@@ -213,9 +213,13 @@ const FANTASY_POSITION_ORDER: Record<string, number> = {
 function BoxScoreView({
   matchup,
   onClose,
+  platform,
+  season,
 }: {
   matchup: ProcessedMatchup;
   onClose: () => void;
+  platform: 'ESPN' | 'SLEEPER';
+  season: string;
 }) {
   const aWins = matchup.teamA.score > matchup.teamB.score;
 
@@ -359,6 +363,13 @@ function BoxScoreView({
                       {team.score.toFixed(2)}
                     </td>
                   </tr>
+                  {team.bench.length === 0 && platform === 'ESPN' && Number(season) < 2018 && (
+                    <tr>
+                      <td colSpan={3} className="px-3.5 py-2.5 text-[11px] text-muted-foreground italic">
+                        Bench data unavailable for ESPN seasons prior to 2018.
+                      </td>
+                    </tr>
+                  )}
                   {team.bench.length > 0 && (
                     <>
                       <tr className="bg-muted">
@@ -440,12 +451,16 @@ function MatchupsContent({
   onWeekChange,
   selectedMatchup,
   onMatchupSelect,
+  platform,
+  season,
 }: {
   promise: Promise<MatchupsResult>;
   selectedWeek: number | null;
   onWeekChange: (week: number) => void;
   selectedMatchup: number | null;
   onMatchupSelect: (idx: number | null) => void;
+  platform: 'ESPN' | 'SLEEPER';
+  season: string;
 }) {
   const result = use(promise);
 
@@ -506,6 +521,8 @@ function MatchupsContent({
         <BoxScoreView
           matchup={activeMatchup}
           onClose={() => onMatchupSelect(null)}
+          platform={platform}
+          season={season}
         />
       )}
     </div>
@@ -595,6 +612,8 @@ export default function Matchups() {
             onWeekChange={handleWeekChange}
             selectedMatchup={selectedMatchup}
             onMatchupSelect={setSelectedMatchup}
+            platform={platform}
+            season={selectedSeason}
           />
         </Suspense>
       </div>
