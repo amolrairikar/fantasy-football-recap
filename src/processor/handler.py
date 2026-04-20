@@ -22,6 +22,25 @@ table = boto3.resource("dynamodb").Table(table_name)
 ddb_client = boto3.client("dynamodb")
 DYNAMO_BATCH_LIMIT = 25
 
+ESPN_POSITION_ID_MAPPING = {
+    1: "QB",
+    2: "RB",
+    3: "WR",
+    4: "TE",
+    5: "K",
+    16: "D/ST",
+}
+
+ESPN_FANTASY_POSITION_ID_MAPPING = {
+    0: "QB",
+    2: "RB",
+    4: "WR",
+    6: "TE",
+    16: "D/ST",
+    17: "K",
+    23: "FLEX",
+}
+
 
 class EntityType(str, Enum):
     TEAMS = "TEAMS"
@@ -36,18 +55,66 @@ class KeySchema:
     entity_type: EntityType
 
 
+def compile_bench_stats(roster: dict, starter_ids: list[int]) -> list[dict]:
+    stats = []
+    for player in roster.get("entries", []):
+        player_id = player["playerId"]
+        if player_id in starter_ids:
+            continue
+        stats.append(
+            {
+                "player_id": player_id,
+                "full_name": player["playerPoolEntry"]["player"]["fullName"],
+                "points_scored": player["playerPoolEntry"]["appliedStatTotal"],
+                "position": ESPN_POSITION_ID_MAPPING[
+                    player["playerPoolEntry"]["player"]["defaultPositionId"]
+                ],
+            }
+        )
+    return stats
+
+
+def compile_starter_stats(
+    roster: dict, slot_map: dict[int, int]
+) -> tuple[list[dict], list[int]]:
+    stats = []
+    ids = []
+    for player in roster.get("entries", []):
+        player_id = player["playerId"]
+        if player_id in slot_map:
+            lineup_slot_id = slot_map[player_id]
+        else:
+            eligible_slots = player["playerPoolEntry"]["player"].get(
+                "eligibleSlots", []
+            )
+            lineup_slot_id = next(
+                (s for s in eligible_slots if s in ESPN_FANTASY_POSITION_ID_MAPPING),
+                player["lineupSlotId"],
+            )
+        stats.append(
+            {
+                "player_id": player_id,
+                "full_name": player["playerPoolEntry"]["player"]["fullName"],
+                "points_scored": player["playerPoolEntry"]["appliedStatTotal"],
+                "position": ESPN_POSITION_ID_MAPPING[
+                    player["playerPoolEntry"]["player"]["defaultPositionId"]
+                ],
+                "fantasy_position": ESPN_FANTASY_POSITION_ID_MAPPING.get(
+                    lineup_slot_id, "FLEX"
+                ),
+            }
+        )
+        ids.append(player_id)
+    return stats, ids
+
+
 def sanitize_value(val: Any) -> Any:
-    """
-    Convert Python floats to Decimal for DynamoDB.
-
-    Args:
-        val: The value to sanitize.
-
-    Returns:
-        The sanitized value.
-    """
     if isinstance(val, float):
         return Decimal(str(val))
+    if isinstance(val, list):
+        return [sanitize_value(v) for v in val]
+    if isinstance(val, dict):
+        return {k: sanitize_value(v) for k, v in val.items()}
     return val
 
 
@@ -166,11 +233,50 @@ def register_raw_data(raw_data: list[dict], con: duckdb.DuckDBPyConnection) -> N
                 else:
                     winner = "TIE"
                     loser = "TIE"
+
+                # Get players for each matchups
+                team_a_starters = record.get("home", {}).get(
+                    "rosterForMatchupPeriod", {}
+                )
+                team_a_bench = record.get("home", {}).get(
+                    "rosterForCurrentScoringPeriod", {}
+                )
+                team_b_starters = record.get("away", {}).get(
+                    "rosterForMatchupPeriod", {}
+                )
+                team_b_bench = record.get("away", {}).get(
+                    "rosterForCurrentScoringPeriod", {}
+                )
+                team_a_slot_map = {
+                    p["playerId"]: p["lineupSlotId"]
+                    for p in team_a_bench.get("entries", [])
+                }
+                team_b_slot_map = {
+                    p["playerId"]: p["lineupSlotId"]
+                    for p in team_b_bench.get("entries", [])
+                }
+                team_a_starters_stats, team_a_starters_ids = compile_starter_stats(
+                    roster=team_a_starters, slot_map=team_a_slot_map
+                )
+                team_b_starters_stats, team_b_starters_ids = compile_starter_stats(
+                    roster=team_b_starters, slot_map=team_b_slot_map
+                )
+                team_a_bench_stats = compile_bench_stats(
+                    roster=team_a_bench, starter_ids=team_a_starters_ids
+                )
+                team_b_bench_stats = compile_bench_stats(
+                    roster=team_b_bench, starter_ids=team_b_starters_ids
+                )
+
                 cleaned_matchup = {
                     "team_a_id": team_a_id,
                     "team_a_score": team_a_score,
+                    "team_a_starters": team_a_starters_stats,
+                    "team_a_bench": team_a_bench_stats,
                     "team_b_id": team_b_id,
                     "team_b_score": team_b_score,
+                    "team_b_starters": team_b_starters_stats,
+                    "team_b_bench": team_b_bench_stats,
                     "playoff_tier_type": playoff_tier_type,
                     "winner": winner,
                     "loser": loser,

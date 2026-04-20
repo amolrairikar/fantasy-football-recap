@@ -7,6 +7,7 @@ import {
   getSeasonMatchups,
   getTeams,
   type MatchupItem,
+  type PlayerStat,
   type TeamItem,
 } from '@/features/matchups/api-calls';
 
@@ -17,6 +18,8 @@ interface TeamSide {
   ownerUsername: string;
   score: number;
   avatarColor: string;
+  starters: PlayerStat[];
+  bench: PlayerStat[];
 }
 
 interface ProcessedMatchup {
@@ -61,6 +64,8 @@ function processData(teams: TeamItem[], matchups: MatchupItem[]): MatchupsData {
         ownerUsername: tA.display_name ?? '',
         score: Number(m.team_a_score),
         avatarColor: colorMap.get(m.team_a_id) ?? avatarColor(0),
+        starters: m.team_a_starters ?? [],
+        bench: m.team_a_bench ?? [],
       },
       teamB: {
         teamId: m.team_b_id,
@@ -69,6 +74,8 @@ function processData(teams: TeamItem[], matchups: MatchupItem[]): MatchupsData {
         ownerUsername: tB.display_name ?? '',
         score: Number(m.team_b_score),
         avatarColor: colorMap.get(m.team_b_id) ?? avatarColor(1),
+        starters: m.team_b_starters ?? [],
+        bench: m.team_b_bench ?? [],
       },
       week,
       playoffRound: m.playoff_round ?? null,
@@ -193,12 +200,26 @@ function MatchupCard({
   );
 }
 
+const FANTASY_POSITION_ORDER: Record<string, number> = {
+  QB: 0,
+  RB: 1,
+  WR: 2,
+  TE: 3,
+  FLEX: 4,
+  'D/ST': 5,
+  K: 6,
+};
+
 function BoxScoreView({
   matchup,
   onClose,
+  platform,
+  season,
 }: {
   matchup: ProcessedMatchup;
   onClose: () => void;
+  platform: 'ESPN' | 'SLEEPER';
+  season: string;
 }) {
   const aWins = matchup.teamA.score > matchup.teamB.score;
 
@@ -233,15 +254,13 @@ function BoxScoreView({
           <div className="text-center">
             <div className="flex items-center justify-center gap-3">
               <span
-                className={`text-[28px] font-medium tabular-nums ${!aWins ? 'text-muted-foreground' : ''}`}
-                style={aWins ? { color: matchup.teamA.avatarColor } : undefined}
+                className={`text-[28px] font-medium tabular-nums ${aWins ? 'text-[#4338ca]' : 'text-muted-foreground'}`}
               >
                 {matchup.teamA.score.toFixed(2)}
               </span>
               <span className="text-[18px] text-muted-foreground">–</span>
               <span
-                className={`text-[28px] font-medium tabular-nums ${aWins ? 'text-muted-foreground' : ''}`}
-                style={!aWins ? { color: matchup.teamB.avatarColor } : undefined}
+                className={`text-[28px] font-medium tabular-nums ${!aWins ? 'text-[#4338ca]' : 'text-muted-foreground'}`}
               >
                 {matchup.teamB.score.toFixed(2)}
               </span>
@@ -269,7 +288,6 @@ function BoxScoreView({
           </div>
         </div>
 
-        {/* Skeleton box score body */}
         <div className="grid grid-cols-2 divide-x divide-border/50">
           {([matchup.teamA, matchup.teamB] as TeamSide[]).map((team, ti) => (
             <div key={ti}>
@@ -318,19 +336,19 @@ function BoxScoreView({
                   </tr>
                 </thead>
                 <tbody>
-                  {Array.from({ length: 9 }).map((_, i) => (
+                  {[...team.starters].sort((a, b) => (FANTASY_POSITION_ORDER[a.fantasy_position ?? ''] ?? 99) - (FANTASY_POSITION_ORDER[b.fantasy_position ?? ''] ?? 99)).map((p) => (
                     <tr
-                      key={i}
+                      key={p.player_id}
                       className="border-b border-border/50 last:border-0"
                     >
-                      <td className="px-3.5 py-2.5">
-                        <Skeleton className="h-4 w-8 rounded" />
+                      <td className="px-3.5 py-2.5 text-[11px] font-medium text-muted-foreground">
+                        {p.fantasy_position ?? p.position}
                       </td>
-                      <td className="px-3.5 py-2.5">
-                        <Skeleton className="h-3 w-full max-w-[120px]" />
+                      <td className="px-3.5 py-2.5 text-[12px] text-foreground truncate">
+                        {p.full_name}
                       </td>
-                      <td className="px-3.5 py-2.5 text-right">
-                        <Skeleton className="h-3 w-10 ml-auto" />
+                      <td className="px-3.5 py-2.5 text-right text-[12px] tabular-nums text-foreground">
+                        {Number(p.points_scored).toFixed(2)}
                       </td>
                     </tr>
                   ))}
@@ -345,6 +363,41 @@ function BoxScoreView({
                       {team.score.toFixed(2)}
                     </td>
                   </tr>
+                  {team.bench.length === 0 && platform === 'ESPN' && Number(season) < 2018 && (
+                    <tr>
+                      <td colSpan={3} className="px-3.5 py-2.5 text-[11px] text-muted-foreground italic">
+                        Bench data unavailable for ESPN seasons prior to 2018.
+                      </td>
+                    </tr>
+                  )}
+                  {team.bench.length > 0 && (
+                    <>
+                      <tr className="bg-muted">
+                        <td
+                          colSpan={3}
+                          className="px-3.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground"
+                        >
+                          Bench
+                        </td>
+                      </tr>
+                      {team.bench.map((p) => (
+                        <tr
+                          key={p.player_id}
+                          className="border-b border-border/50 last:border-0"
+                        >
+                          <td className="px-3.5 py-2.5 text-[11px] font-medium text-muted-foreground">
+                            {p.position}
+                          </td>
+                          <td className="px-3.5 py-2.5 text-[12px] text-muted-foreground truncate">
+                            {p.full_name}
+                          </td>
+                          <td className="px-3.5 py-2.5 text-right text-[12px] tabular-nums text-muted-foreground">
+                            {Number(p.points_scored).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -398,12 +451,16 @@ function MatchupsContent({
   onWeekChange,
   selectedMatchup,
   onMatchupSelect,
+  platform,
+  season,
 }: {
   promise: Promise<MatchupsResult>;
   selectedWeek: number | null;
   onWeekChange: (week: number) => void;
   selectedMatchup: number | null;
   onMatchupSelect: (idx: number | null) => void;
+  platform: 'ESPN' | 'SLEEPER';
+  season: string;
 }) {
   const result = use(promise);
 
@@ -464,6 +521,8 @@ function MatchupsContent({
         <BoxScoreView
           matchup={activeMatchup}
           onClose={() => onMatchupSelect(null)}
+          platform={platform}
+          season={season}
         />
       )}
     </div>
@@ -553,6 +612,8 @@ export default function Matchups() {
             onWeekChange={handleWeekChange}
             selectedMatchup={selectedMatchup}
             onMatchupSelect={setSelectedMatchup}
+            platform={platform}
+            season={selectedSeason}
           />
         </Suspense>
       </div>
