@@ -74,24 +74,28 @@ def compile_bench_stats(roster: dict, starter_ids: list[int]) -> list[dict]:
     return stats
 
 
-def compile_starter_stats(roster: dict) -> tuple[list[dict], list[int]]:
+def compile_starter_stats(
+    roster: dict, slot_map: dict[int, int]
+) -> tuple[list[dict], list[int]]:
     stats = []
     ids = []
     for player in roster.get("entries", []):
+        player_id = player["playerId"]
+        lineup_slot_id = slot_map.get(player_id, player["lineupSlotId"])
         stats.append(
             {
-                "player_id": player["playerId"],
+                "player_id": player_id,
                 "full_name": player["playerPoolEntry"]["player"]["fullName"],
                 "points_scored": player["playerPoolEntry"]["appliedStatTotal"],
                 "position": ESPN_POSITION_ID_MAPPING[
                     player["playerPoolEntry"]["player"]["defaultPositionId"]
                 ],
-                "fantasy_position": ESPN_FANTASY_POSITION_ID_MAPPING[
-                    player["lineupSlotId"]
-                ],
+                "fantasy_position": ESPN_FANTASY_POSITION_ID_MAPPING.get(
+                    lineup_slot_id, "FLEX"
+                ),
             }
         )
-        ids.append(player["playerId"])
+        ids.append(player_id)
     return stats, ids
 
 
@@ -234,11 +238,19 @@ def register_raw_data(raw_data: list[dict], con: duckdb.DuckDBPyConnection) -> N
                 team_b_bench = record.get("away", {}).get(
                     "rosterForCurrentScoringPeriod", {}
                 )
+                team_a_slot_map = {
+                    p["playerId"]: p["lineupSlotId"]
+                    for p in team_a_bench.get("entries", [])
+                }
+                team_b_slot_map = {
+                    p["playerId"]: p["lineupSlotId"]
+                    for p in team_b_bench.get("entries", [])
+                }
                 team_a_starters_stats, team_a_starters_ids = compile_starter_stats(
-                    roster=team_a_starters
+                    roster=team_a_starters, slot_map=team_a_slot_map
                 )
                 team_b_starters_stats, team_b_starters_ids = compile_starter_stats(
-                    roster=team_b_starters
+                    roster=team_b_starters, slot_map=team_b_slot_map
                 )
                 team_a_bench_stats = compile_bench_stats(
                     roster=team_a_bench, starter_ids=team_a_starters_ids

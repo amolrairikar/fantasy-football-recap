@@ -200,6 +200,16 @@ function MatchupCard({
   );
 }
 
+const FANTASY_POSITION_ORDER: Record<string, number> = {
+  QB: 0,
+  RB: 1,
+  WR: 2,
+  TE: 3,
+  FLEX: 4,
+  'D/ST': 5,
+  K: 6,
+};
+
 function BoxScoreView({
   matchup,
   onClose,
@@ -324,7 +334,7 @@ function BoxScoreView({
                   </tr>
                 </thead>
                 <tbody>
-                  {team.starters.map((p) => (
+                  {[...team.starters].sort((a, b) => (FANTASY_POSITION_ORDER[a.fantasy_position ?? ''] ?? 99) - (FANTASY_POSITION_ORDER[b.fantasy_position ?? ''] ?? 99)).map((p) => (
                     <tr
                       key={p.player_id}
                       className="border-b border-border/50 last:border-0"
