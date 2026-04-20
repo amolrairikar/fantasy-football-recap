@@ -250,15 +250,13 @@ function BoxScoreView({
           <div className="text-center">
             <div className="flex items-center justify-center gap-3">
               <span
-                className={`text-[28px] font-medium tabular-nums ${!aWins ? 'text-muted-foreground' : ''}`}
-                style={aWins ? { color: matchup.teamA.avatarColor } : undefined}
+                className={`text-[28px] font-medium tabular-nums ${aWins ? 'text-[#4338ca]' : 'text-muted-foreground'}`}
               >
                 {matchup.teamA.score.toFixed(2)}
               </span>
               <span className="text-[18px] text-muted-foreground">–</span>
               <span
-                className={`text-[28px] font-medium tabular-nums ${aWins ? 'text-muted-foreground' : ''}`}
-                style={!aWins ? { color: matchup.teamB.avatarColor } : undefined}
+                className={`text-[28px] font-medium tabular-nums ${!aWins ? 'text-[#4338ca]' : 'text-muted-foreground'}`}
               >
                 {matchup.teamB.score.toFixed(2)}
               </span>
@@ -350,6 +348,17 @@ function BoxScoreView({
                       </td>
                     </tr>
                   ))}
+                  <tr className="bg-muted">
+                    <td
+                      colSpan={2}
+                      className="px-3.5 py-2.5 text-[12px] font-medium text-muted-foreground"
+                    >
+                      Total
+                    </td>
+                    <td className="px-3.5 py-2.5 text-right font-medium text-foreground tabular-nums">
+                      {team.score.toFixed(2)}
+                    </td>
+                  </tr>
                   {team.bench.length > 0 && (
                     <>
                       <tr className="bg-muted">
@@ -378,17 +387,6 @@ function BoxScoreView({
                       ))}
                     </>
                   )}
-                  <tr className="bg-muted">
-                    <td
-                      colSpan={2}
-                      className="px-3.5 py-2.5 text-[12px] font-medium text-muted-foreground"
-                    >
-                      Total
-                    </td>
-                    <td className="px-3.5 py-2.5 text-right font-medium text-foreground tabular-nums">
-                      {team.score.toFixed(2)}
-                    </td>
-                  </tr>
                 </tbody>
               </table>
             </div>

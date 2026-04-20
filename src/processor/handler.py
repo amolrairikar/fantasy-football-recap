@@ -81,7 +81,16 @@ def compile_starter_stats(
     ids = []
     for player in roster.get("entries", []):
         player_id = player["playerId"]
-        lineup_slot_id = slot_map.get(player_id, player["lineupSlotId"])
+        if player_id in slot_map:
+            lineup_slot_id = slot_map[player_id]
+        else:
+            eligible_slots = player["playerPoolEntry"]["player"].get(
+                "eligibleSlots", []
+            )
+            lineup_slot_id = next(
+                (s for s in eligible_slots if s in ESPN_FANTASY_POSITION_ID_MAPPING),
+                player["lineupSlotId"],
+            )
         stats.append(
             {
                 "player_id": player_id,
