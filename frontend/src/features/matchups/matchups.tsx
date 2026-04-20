@@ -7,6 +7,7 @@ import {
   getSeasonMatchups,
   getTeams,
   type MatchupItem,
+  type PlayerStat,
   type TeamItem,
 } from '@/features/matchups/api-calls';
 
@@ -17,6 +18,8 @@ interface TeamSide {
   ownerUsername: string;
   score: number;
   avatarColor: string;
+  starters: PlayerStat[];
+  bench: PlayerStat[];
 }
 
 interface ProcessedMatchup {
@@ -61,6 +64,8 @@ function processData(teams: TeamItem[], matchups: MatchupItem[]): MatchupsData {
         ownerUsername: tA.display_name ?? '',
         score: Number(m.team_a_score),
         avatarColor: colorMap.get(m.team_a_id) ?? avatarColor(0),
+        starters: m.team_a_starters ?? [],
+        bench: m.team_a_bench ?? [],
       },
       teamB: {
         teamId: m.team_b_id,
@@ -69,6 +74,8 @@ function processData(teams: TeamItem[], matchups: MatchupItem[]): MatchupsData {
         ownerUsername: tB.display_name ?? '',
         score: Number(m.team_b_score),
         avatarColor: colorMap.get(m.team_b_id) ?? avatarColor(1),
+        starters: m.team_b_starters ?? [],
+        bench: m.team_b_bench ?? [],
       },
       week,
       playoffRound: m.playoff_round ?? null,
@@ -269,7 +276,6 @@ function BoxScoreView({
           </div>
         </div>
 
-        {/* Skeleton box score body */}
         <div className="grid grid-cols-2 divide-x divide-border/50">
           {([matchup.teamA, matchup.teamB] as TeamSide[]).map((team, ti) => (
             <div key={ti}>
@@ -318,22 +324,50 @@ function BoxScoreView({
                   </tr>
                 </thead>
                 <tbody>
-                  {Array.from({ length: 9 }).map((_, i) => (
+                  {team.starters.map((p) => (
                     <tr
-                      key={i}
+                      key={p.player_id}
                       className="border-b border-border/50 last:border-0"
                     >
-                      <td className="px-3.5 py-2.5">
-                        <Skeleton className="h-4 w-8 rounded" />
+                      <td className="px-3.5 py-2.5 text-[11px] font-medium text-muted-foreground">
+                        {p.fantasy_position ?? p.position}
                       </td>
-                      <td className="px-3.5 py-2.5">
-                        <Skeleton className="h-3 w-full max-w-[120px]" />
+                      <td className="px-3.5 py-2.5 text-[12px] text-foreground truncate">
+                        {p.full_name}
                       </td>
-                      <td className="px-3.5 py-2.5 text-right">
-                        <Skeleton className="h-3 w-10 ml-auto" />
+                      <td className="px-3.5 py-2.5 text-right text-[12px] tabular-nums text-foreground">
+                        {Number(p.points_scored).toFixed(2)}
                       </td>
                     </tr>
                   ))}
+                  {team.bench.length > 0 && (
+                    <>
+                      <tr className="bg-muted">
+                        <td
+                          colSpan={3}
+                          className="px-3.5 py-1.5 text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground"
+                        >
+                          Bench
+                        </td>
+                      </tr>
+                      {team.bench.map((p) => (
+                        <tr
+                          key={p.player_id}
+                          className="border-b border-border/50 last:border-0"
+                        >
+                          <td className="px-3.5 py-2.5 text-[11px] font-medium text-muted-foreground">
+                            {p.position}
+                          </td>
+                          <td className="px-3.5 py-2.5 text-[12px] text-muted-foreground truncate">
+                            {p.full_name}
+                          </td>
+                          <td className="px-3.5 py-2.5 text-right text-[12px] tabular-nums text-muted-foreground">
+                            {Number(p.points_scored).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  )}
                   <tr className="bg-muted">
                     <td
                       colSpan={2}

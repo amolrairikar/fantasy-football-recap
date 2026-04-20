@@ -10,11 +10,23 @@ export interface TeamItem {
   secondary_owner_id: string | null;
 }
 
+export interface PlayerStat {
+  player_id: number;
+  full_name: string;
+  points_scored: number;
+  position: string;
+  fantasy_position?: string;
+}
+
 export interface MatchupItem {
   team_a_id: string;
   team_a_score: number;
+  team_a_starters: PlayerStat[];
+  team_a_bench: PlayerStat[];
   team_b_id: string;
   team_b_score: number;
+  team_b_starters: PlayerStat[];
+  team_b_bench: PlayerStat[];
   playoff_tier_type: string;
   playoff_round: string | null;
   winner: string;
