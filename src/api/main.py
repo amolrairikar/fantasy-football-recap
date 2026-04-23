@@ -281,28 +281,32 @@ def delete_prefixed_items(table_name: str, pk_value: str, sk_prefix: str) -> Non
         pk_value: The value of the PK to match.
         sk_prefix: The prefix of the SK to match for deletion.
     """
-    response = dynamodb_client.query(
-        TableName=table_name,
-        KeyConditionExpression="PK = :pk AND begins_with(SK, :prefix)",
-        ExpressionAttributeValues={
+    query_kwargs: dict = {
+        "TableName": table_name,
+        "KeyConditionExpression": "PK = :pk AND begins_with(SK, :prefix)",
+        "ExpressionAttributeValues": {
             ":pk": {"S": pk_value},
             ":prefix": {"S": sk_prefix},
         },
-        ProjectionExpression="PK, SK",
-    )
-    items = response.get("Items", [])
-
-    if not items:
-        return
-
-    for i in range(0, len(items), 25):
-        batch = items[i : i + 25]
-        dynamodb_client.batch_write_item(
-            RequestItems={
-                table_name: [{"DeleteRequest": {"Key": item}} for item in batch]
-            }
-        )
-    logger.info(f"Deleted {len(items)} items with prefix {sk_prefix}")
+        "ProjectionExpression": "PK, SK",
+    }
+    total_deleted = 0
+    while True:
+        response = dynamodb_client.query(**query_kwargs)
+        items = response.get("Items", [])
+        for i in range(0, len(items), 25):
+            batch = items[i : i + 25]
+            dynamodb_client.batch_write_item(
+                RequestItems={
+                    table_name: [{"DeleteRequest": {"Key": item}} for item in batch]
+                }
+            )
+        total_deleted += len(items)
+        last_key = response.get("LastEvaluatedKey")
+        if not last_key:
+            break
+        query_kwargs["ExclusiveStartKey"] = last_key
+    logger.info(f"Deleted {total_deleted} items with prefix {sk_prefix}")
 
 
 @app.get("/", status_code=status.HTTP_200_OK)
@@ -458,28 +462,23 @@ def delete_league(
     try:
         table_name = os.environ["DYNAMODB_TABLE_NAME"]
         league_pk = f"LEAGUE#{canonical_league_id}"
-        dynamodb_client.transact_write_items(
-            TransactItems=[
-                {
-                    "Delete": {
-                        "TableName": table_name,
-                        "Key": {
-                            "PK": {"S": f"LEAGUE#{canonical_league_id}"},
-                            "SK": {"S": "METADATA"},
-                        },
-                    }
-                },
-                {
-                    "Delete": {
-                        "TableName": table_name,
-                        "Key": {
-                            "PK": {"S": f"LEAGUE#{leagueId}#PLATFORM#{platform.value}"},
-                            "SK": {"S": "LEAGUE_LOOKUP"},
-                        },
-                    }
-                },
-            ]
+        dynamodb_client.delete_item(
+            TableName=table_name,
+            Key={
+                "PK": {"S": f"LEAGUE#{canonical_league_id}"},
+                "SK": {"S": "METADATA"},
+            },
         )
+
+        lookup_response = table.query(
+            IndexName="GSI1",
+            KeyConditionExpression=Key("canonical_league_id").eq(canonical_league_id),
+        )
+        lookup_items = lookup_response.get("Items", [])
+        if lookup_items:
+            with table.batch_writer() as writer:
+                for item in lookup_items:
+                    writer.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
 
         prefixes_to_clear = ["MATCHUPS#", "TEAMS#", "STANDINGS#", "AI_RECAP#"]
         for prefix in prefixes_to_clear:

@@ -18,8 +18,8 @@ QUERIES = {
         SELECT
             u.display_name,
             CAST(r.roster_id AS STRING) AS team_id,
-            "metadata.team_name" AS team_name,
-            u.avatar AS team_logo,
+            u.metadata.team_name AS team_name,
+            'https://sleepercdn.com/avatars/thumbs/' || u.avatar AS team_logo,
             u.season,
             u.user_id AS primary_owner_id,
             NULL AS secondary_owner_id
@@ -79,14 +79,34 @@ QUERIES = {
         SELECT
             CAST(m.team_a_roster_id AS STRING) AS team_a_id,
             m.team_a_points AS team_a_score,
-            NULL AS team_a_starters,
-            NULL AS team_a_bench,
+            m.team_a_starters AS team_a_starters,
+            m.team_a_bench AS team_a_bench,
             CAST(m.team_b_roster_id AS STRING) AS team_b_id,
             m.team_b_points AS team_b_score,
-            NULL AS team_b_starters,
-            NULL AS team_b_bench,
-            NULL AS playoff_tier_type,
-            NULL AS playoff_round,
+            m.team_b_starters AS team_b_starters,
+            m.team_b_bench AS team_b_bench,
+            m.playoff_tier_type AS playoff_tier_type,
+            CASE
+                WHEN m.playoff_tier_type = 'WINNERS_BRACKET' THEN
+                    CASE
+                        WHEN CAST(m.team_a_season AS INTEGER) < 2021 THEN
+                            CASE
+                                WHEN CAST(m.team_a_week AS INTEGER) = 14 THEN 'Quarterfinals'
+                                WHEN CAST(m.team_a_week AS INTEGER) = 15 THEN 'Semifinals'
+                                WHEN CAST(m.team_a_week AS INTEGER) = 16 THEN 'Finals'
+                                ELSE NULL
+                            END
+                        ELSE
+                            CASE
+                                WHEN CAST(m.team_a_week AS INTEGER) = 15 THEN 'Quarterfinals'
+                                WHEN CAST(m.team_a_week AS INTEGER) = 16 THEN 'Semifinals'
+                                WHEN CAST(m.team_a_week AS INTEGER) = 17 THEN 'Finals'
+                                ELSE NULL
+                            END
+                    END
+                WHEN m.playoff_tier_type = 'NONE' THEN NULL
+                ELSE 'Losers Bracket'
+            END AS playoff_round,
             CAST(m.winner AS STRING) AS winner,
             CAST(m.loser AS STRING) AS loser,
             CAST(m.team_a_week AS STRING) AS week,
