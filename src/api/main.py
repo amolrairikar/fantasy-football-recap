@@ -544,10 +544,10 @@ def query_league(
 
     try:
         if sk.endswith("#"):
-            response = table.query(
+            db_response = table.query(
                 KeyConditionExpression=Key("PK").eq(pk) & Key("SK").begins_with(sk),
             )
-            items = response.get("Items", [])
+            items = db_response.get("Items", [])
             if not items:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
