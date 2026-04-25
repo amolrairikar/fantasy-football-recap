@@ -68,7 +68,7 @@ function TeamRow({
     </span>
   ) : played && score !== null ? (
     <span className={`text-[12px] font-medium tabular-nums ${isWinner ? 'text-foreground' : 'text-muted-foreground'}`}>
-      {score.toFixed(1)}
+      {Number(score).toFixed(1)}
     </span>
   ) : (
     <span className="text-[10px] font-medium text-muted-foreground italic">TBD</span>

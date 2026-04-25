@@ -136,46 +136,108 @@ QUERIES = {
     },
     "PLAYOFF_BRACKET": {
         "ESPN": """
+        WITH playoff_rounds AS (
+            SELECT
+                CAST(m.team_a_id AS STRING) AS team_1_id,
+                CAST(m.team_b_id AS STRING) AS team_2_id,
+                CAST(m.winner AS STRING) AS winner,
+                CAST(m.loser AS STRING) AS loser,
+                CASE
+                    WHEN CAST(m.season AS INTEGER) < 2021 THEN
+                        CASE
+                            WHEN CAST(m.week AS INTEGER) = 14 THEN 1
+                            WHEN CAST(m.week AS INTEGER) = 15 THEN 2
+                            WHEN CAST(m.week AS INTEGER) = 16 THEN 3
+                            ELSE NULL
+                        END
+                    ELSE
+                        CASE
+                            WHEN CAST(m.week AS INTEGER) = 15 THEN 1
+                            WHEN CAST(m.week AS INTEGER) = 16 THEN 2
+                            WHEN CAST(m.week AS INTEGER) = 17 THEN 3
+                            ELSE NULL
+                        END
+                END AS round,
+                CAST(m.season AS STRING) AS season,
+                ROW_NUMBER() OVER (PARTITION BY
+                    CASE
+                        WHEN CAST(m.season AS INTEGER) < 2021 THEN
+                            CASE
+                                WHEN CAST(m.week AS INTEGER) = 14 THEN 1
+                                WHEN CAST(m.week AS INTEGER) = 15 THEN 2
+                                WHEN CAST(m.week AS INTEGER) = 16 THEN 3
+                                ELSE NULL
+                            END
+                        ELSE
+                            CASE
+                                WHEN CAST(m.week AS INTEGER) = 15 THEN 1
+                                WHEN CAST(m.week AS INTEGER) = 16 THEN 2
+                                WHEN CAST(m.week AS INTEGER) = 17 THEN 3
+                                ELSE NULL
+                            END
+                    END,
+                    m.season
+                    ORDER BY CAST(m.week AS INTEGER), m.team_a_id
+                ) AS match_id
+            FROM matchups m
+            WHERE m.playoff_tier_type = 'WINNERS_BRACKET'
+        ),
+        with_from AS (
+            SELECT
+                p.*,
+                CASE
+                    WHEN p.round = 1 THEN NULL
+                    ELSE (
+                        SELECT '{"w": ' || CAST(prev.match_id AS STRING) || '}'
+                        FROM playoff_rounds prev
+                        WHERE prev.round = p.round - 1
+                            AND prev.season = p.season
+                            AND prev.winner = p.team_1_id
+                        LIMIT 1
+                    )
+                END AS team_1_from,
+                CASE
+                    WHEN p.round = 1 THEN NULL
+                    ELSE (
+                        SELECT '{"w": ' || CAST(prev.match_id AS STRING) || '}'
+                        FROM playoff_rounds prev
+                        WHERE prev.round = p.round - 1
+                            AND prev.season = p.season
+                            AND prev.winner = p.team_2_id
+                        LIMIT 1
+                    )
+                END AS team_2_from
+            FROM playoff_rounds p
+        )
         SELECT
-            ROW_NUMBER() OVER (ORDER BY CAST(m.week AS INTEGER), m.team_a_id) AS match_id,
-            CASE
-                WHEN CAST(m.season AS INTEGER) < 2021 THEN
-                    CASE
-                        WHEN CAST(m.week AS INTEGER) = 14 THEN 1
-                        WHEN CAST(m.week AS INTEGER) = 15 THEN 2
-                        WHEN CAST(m.week AS INTEGER) = 16 THEN 3
-                        ELSE NULL
-                    END
-                ELSE
-                    CASE
-                        WHEN CAST(m.week AS INTEGER) = 15 THEN 1
-                        WHEN CAST(m.week AS INTEGER) = 16 THEN 2
-                        WHEN CAST(m.week AS INTEGER) = 17 THEN 3
-                        ELSE NULL
-                    END
-            END AS round,
-            CAST(m.team_a_id AS STRING) AS team_1_id,
+            w.match_id,
+            w.round,
+            w.team_1_id,
             t1.display_name AS team_1_display_name,
             t1.team_name AS team_1_team_name,
             t1.team_logo AS team_1_team_logo,
-            CAST(m.team_b_id AS STRING) AS team_2_id,
+            w.team_2_id,
             t2.display_name AS team_2_display_name,
             t2.team_name AS team_2_team_name,
             t2.team_logo AS team_2_team_logo,
-            CAST(m.winner AS STRING) AS winner,
-            CAST(m.loser AS STRING) AS loser,
+            w.winner,
+            w.loser,
             NULL AS position,
-            NULL AS team_1_from,
-            NULL AS team_2_from,
-            CAST(m.season AS STRING) AS season,
+            w.team_1_from,
+            w.team_2_from,
+            w.season,
             CAST(m.team_a_score AS DOUBLE) AS team_1_score,
             CAST(m.team_b_score AS DOUBLE) AS team_2_score
-        FROM matchups m
+        FROM with_from w
         INNER JOIN teams_output t1
-            ON (CAST(m.team_a_id AS STRING) = t1.team_id AND m.season = t1.season)
+            ON (w.team_1_id = t1.team_id AND w.season = t1.season)
         INNER JOIN teams_output t2
-            ON (CAST(m.team_b_id AS STRING) = t2.team_id AND m.season = t2.season)
-        WHERE m.playoff_tier_type = 'WINNERS_BRACKET'
+            ON (w.team_2_id = t2.team_id AND w.season = t2.season)
+        INNER JOIN matchups m
+            ON (CAST(m.team_a_id AS STRING) = w.team_1_id
+                AND CAST(m.team_b_id AS STRING) = w.team_2_id
+                AND m.season = w.season
+                AND m.playoff_tier_type = 'WINNERS_BRACKET')
         """,
         "SLEEPER": """
         SELECT
