@@ -1,3 +1,5 @@
+import { X } from 'lucide-react';
+
 import type { PlayerStat } from '@/features/matchups/api-calls';
 import { TeamAvatar } from '@/components/team-avatar';
 
@@ -40,7 +42,16 @@ export function BoxScoreCard({
   onClose?: () => void;
 }) {
   return (
-    <div className="bg-card border border-border/50 rounded-lg overflow-hidden">
+    <div className="relative">
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="absolute -top-3 -right-3 p-1.5 rounded-full bg-muted hover:bg-muted/80 border border-border/50 transition-colors z-10 cursor-pointer"
+        >
+          <X className="w-3.5 h-3.5 text-muted-foreground" />
+        </button>
+      )}
+      <div className="bg-card border border-border/50 rounded-lg overflow-hidden">
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-3.5 border-b border-border/50 bg-muted">
         <div className="flex items-center gap-2">
           <TeamAvatar
@@ -60,32 +71,18 @@ export function BoxScoreCard({
             <span
               className={`text-[28px] font-medium tabular-nums ${left.isWinner ? 'text-foreground' : 'text-muted-foreground'}`}
             >
-              {left.score.toFixed(2)}
+              {Number(left.score).toFixed(2)}
             </span>
             <span className="text-[18px] text-muted-foreground">–</span>
             <span
               className={`text-[28px] font-medium tabular-nums ${right.isWinner ? 'text-foreground' : 'text-muted-foreground'}`}
             >
-              {right.score.toFixed(2)}
+              {Number(right.score).toFixed(2)}
             </span>
           </div>
-          {onClose ? (
-            <div className="flex items-center justify-center gap-2 mt-0.5">
-              <div className="text-[10px] font-medium uppercase tracking-[0.07em] text-muted-foreground">
-                {subtitle}
-              </div>
-              <button
-                className="text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                onClick={onClose}
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <div className="text-[10px] font-medium uppercase tracking-[0.07em] text-muted-foreground mt-0.5">
-              {subtitle}
-            </div>
-          )}
+          <div className="text-[10px] font-medium uppercase tracking-[0.07em] text-muted-foreground mt-0.5">
+            {subtitle}
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-row-reverse">
           <TeamAvatar
@@ -170,7 +167,7 @@ export function BoxScoreCard({
                     Total
                   </td>
                   <td className="px-3.5 py-2.5 text-right font-medium text-foreground tabular-nums">
-                    {side.score.toFixed(2)}
+                    {Number(side.score).toFixed(2)}
                   </td>
                 </tr>
                 {side.bench.length === 0 && platform === 'ESPN' && Number(season) < 2018 && (
@@ -209,6 +206,7 @@ export function BoxScoreCard({
             </table>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );

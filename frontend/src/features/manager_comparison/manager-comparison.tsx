@@ -1,4 +1,4 @@
-import { Fragment, Suspense, use, useMemo, useState } from 'react';
+import { Fragment, Suspense, use, useEffect, useMemo, useRef, useState } from 'react';
 
 import { BoxScoreCard, type BoxScoreSide } from '@/components/box-score-card';
 import { avatarColor } from '@/components/team-avatar';
@@ -423,6 +423,13 @@ function ManagerComparisonInner({
   const [li, setLi] = useState(0);
   const [ri, setRi] = useState(Math.min(1, managers.length - 1));
   const [selectedGameIdx, setSelectedGameIdx] = useState<number | null>(null);
+  const boxScoreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedGameIdx !== null) {
+      boxScoreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [selectedGameIdx]);
 
   function handleLeftChange(val: number) {
     if (val === ri) setRi(li);
@@ -596,13 +603,15 @@ function ManagerComparisonInner({
         {selectedGameIdx !== null && games[selectedGameIdx] && (
           <>
             <div className="mt-6 mb-2 border-t border-border/50" />
-            <ManagerBoxScoreView
-              game={games[selectedGameIdx]}
-              left={LWithH2H}
-              right={RWithH2H}
-              platform={platform}
-              onClose={() => setSelectedGameIdx(null)}
-            />
+            <div ref={boxScoreRef}>
+              <ManagerBoxScoreView
+                game={games[selectedGameIdx]}
+                left={LWithH2H}
+                right={RWithH2H}
+                platform={platform}
+                onClose={() => setSelectedGameIdx(null)}
+              />
+            </div>
           </>
         )}
       </div>

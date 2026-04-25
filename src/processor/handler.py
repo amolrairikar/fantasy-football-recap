@@ -46,6 +46,7 @@ class EntityType(str, Enum):
     TEAMS = "TEAMS"
     MATCHUPS = "MATCHUPS"
     STANDINGS = "STANDINGS"
+    PLAYOFF_BRACKET = "PLAYOFF_BRACKET"
 
 
 @dataclass(frozen=True)
@@ -279,6 +280,127 @@ def resolve_seasons_to_process(
     return [current_seasons[-1]]
 
 
+def _build_espn_brackets(all_matchups: list[dict]) -> list[dict]:
+    """
+    Derive a bracket structure from ESPN playoff matchup data.
+
+    Builds bracket entries equivalent to the Sleeper bracket format, with match IDs,
+    round numbers, and team_from relationships linking each round to the previous one.
+
+    Bye matchups (team_b_id empty) are skipped — bye teams appear with null team_from
+    in the next round, which the frontend uses to detect and render the bye card.
+
+    Final-round positions: WB final = 1 (championship); consolation finals = 3 or 5
+    based on whether both teams came from WB losses (3rd place) or consolation (5th place).
+
+    Args:
+        all_matchups: List of ESPN matchup dicts already built by _register_espn_raw_data.
+
+    Returns:
+        List of bracket entry dicts with match_id, round, team_1, team_2, winner, loser,
+        position, team_1_from, team_2_from, and season.
+    """
+    playoff_types = {"WINNERS_BRACKET", "WINNERS_CONSOLATION_LADDER"}
+    playoff_matchups = [
+        m for m in all_matchups if m["playoff_tier_type"] in playoff_types
+    ]
+
+    by_season: dict[str, list[dict]] = defaultdict(list)
+    for m in playoff_matchups:
+        by_season[m["season"]].append(m)
+
+    all_brackets: list[dict] = []
+    for season, matchups in by_season.items():
+        unique_weeks = sorted({int(m["week"]) for m in matchups})
+        week_to_round = {w: i + 1 for i, w in enumerate(unique_weeks)}
+        matchups.sort(key=lambda x: (int(x["week"]), str(x["team_a_id"])))
+
+        match_id_counter = 1
+        team_round_result: dict[tuple[str, int], tuple[int, str]] = {}
+        match_id_to_type: dict[int, str] = {}
+        bracket_entries: list[dict] = []
+
+        for matchup in matchups:
+            team_1 = str(matchup["team_a_id"])
+            team_2 = str(matchup["team_b_id"])
+            if not team_2:
+                continue  # skip bye matchups — bye teams get null team_from in the next round
+
+            round_num = week_to_round[int(matchup["week"])]
+            match_id = match_id_counter
+            match_id_counter += 1
+
+            raw_winner = str(matchup["winner"])
+            raw_loser = str(matchup["loser"])
+            winner = raw_winner if raw_winner not in ("TIE", "") else None
+            loser = raw_loser if raw_loser not in ("TIE", "") else None
+
+            if winner == team_1:
+                team_round_result[(team_1, round_num)] = (match_id, "w")
+                team_round_result[(team_2, round_num)] = (match_id, "l")
+            elif winner == team_2:
+                team_round_result[(team_2, round_num)] = (match_id, "w")
+                team_round_result[(team_1, round_num)] = (match_id, "l")
+
+            is_wb = matchup["playoff_tier_type"] == "WINNERS_BRACKET"
+            match_id_to_type[match_id] = "WB" if is_wb else "CONSOLATION"
+            bracket_entries.append(
+                {
+                    "match_id": match_id,
+                    "round": round_num,
+                    "team_1": team_1,
+                    "team_2": team_2,
+                    "winner": winner,
+                    "loser": loser,
+                    "position": None if is_wb else 2,
+                    "team_1_from": None,
+                    "team_2_from": None,
+                    "season": season,
+                }
+            )
+
+        for entry in bracket_entries:
+            if entry["round"] > 1:
+                prev_round = entry["round"] - 1
+                for team_key, from_key in [
+                    ("team_1", "team_1_from"),
+                    ("team_2", "team_2_from"),
+                ]:
+                    team_id = entry[team_key]
+                    if team_id:
+                        result = team_round_result.get((team_id, prev_round))
+                        if result:
+                            prev_match_id, outcome = result
+                            entry[from_key] = json.dumps({outcome: prev_match_id})
+
+        if bracket_entries:
+            max_round = max(e["round"] for e in bracket_entries)
+            for entry in bracket_entries:
+                if entry["round"] != max_round:
+                    continue
+                if entry["position"] is None:
+                    entry["position"] = 1  # WB final = championship
+                else:
+                    # Consolation final: 3rd place if both teams came from WB losses, else 5th
+                    from_types = []
+                    for from_key in ("team_1_from", "team_2_from"):
+                        from_str = entry.get(from_key)
+                        if from_str:
+                            parsed = json.loads(from_str)
+                            mid = parsed.get("w") or parsed.get("l")
+                            if mid is not None:
+                                from_types.append(
+                                    match_id_to_type.get(mid, "CONSOLATION")
+                                )
+                    entry["position"] = (
+                        3 if from_types and all(t == "WB" for t in from_types) else 5
+                    )
+
+        all_brackets.extend(bracket_entries)
+
+    return all_brackets
+
+
 def _register_espn_raw_data(
     raw_data: list[dict],
 ) -> dict[str, list[dict]]:
@@ -292,7 +414,7 @@ def _register_espn_raw_data(
         raw_data: List of dicts with keys: season, data_type, data.
 
     Returns:
-        Dict with keys 'members', 'teams', and 'matchups', each mapping to a list of row dicts.
+        Dict with keys 'members', 'teams', 'matchups', and 'brackets', each mapping to a list of row dicts.
     """
     all_members, all_teams, all_matchups = [], [], []
     for item in raw_data:
@@ -374,7 +496,13 @@ def _register_espn_raw_data(
                     }
                 )
 
-    return {"members": all_members, "teams": all_teams, "matchups": all_matchups}
+    brackets = _build_espn_brackets(all_matchups)
+    return {
+        "members": all_members,
+        "teams": all_teams,
+        "matchups": all_matchups,
+        "brackets": brackets,
+    }
 
 
 def _register_sleeper_raw_data(
@@ -390,6 +518,7 @@ def _register_sleeper_raw_data(
         Dict with keys 'users', 'rosters', and 'matchups', each mapping to a list of row dicts.
     """
     bracket_by_season: dict[str, dict[frozenset, dict]] = defaultdict(dict)
+    all_brackets: list[dict] = []
     for item in raw_data:
         if item["data_type"] == "playoff_bracket":
             for entry in item["data"]:
@@ -401,6 +530,24 @@ def _register_sleeper_raw_data(
                 bracket_by_season[item["season"]][frozenset([t1, t2])] = {
                     "tier": tier,
                 }
+                all_brackets.append(
+                    {
+                        "match_id": entry.get("m"),
+                        "round": entry.get("r"),
+                        "team_1": t1,
+                        "team_2": t2,
+                        "winner": entry.get("w"),
+                        "loser": entry.get("l"),
+                        "position": p,
+                        "team_1_from": json.dumps(entry["t1_from"])
+                        if "t1_from" in entry
+                        else None,
+                        "team_2_from": json.dumps(entry["t2_from"])
+                        if "t2_from" in entry
+                        else None,
+                        "season": item["season"],
+                    }
+                )
 
     all_users, all_rosters, all_matchups = [], [], []
     for item in raw_data:
@@ -486,7 +633,12 @@ def _register_sleeper_raw_data(
                     }
                 )
 
-    return {"users": all_users, "rosters": all_rosters, "matchups": all_matchups}
+    return {
+        "users": all_users,
+        "rosters": all_rosters,
+        "matchups": all_matchups,
+        "brackets": all_brackets,
+    }
 
 
 def register_raw_data(
@@ -713,10 +865,17 @@ def lambda_handler(event, context) -> None:
         entity_type=EntityType.STANDINGS,
     )
 
-    schemas = [TEAMS_SCHEMA, MATCHUPS_SCHEMA, STANDINGS_SCHEMA]
+    PLAYOFF_BRACKET_SCHEMA = KeySchema(
+        pk=f"LEAGUE#{canonical_league_id}",
+        sk=lambda row: f"PLAYOFF_BRACKET#{row['season']}",
+        entity_type=EntityType.PLAYOFF_BRACKET,
+    )
+
+    schemas = [TEAMS_SCHEMA, MATCHUPS_SCHEMA, STANDINGS_SCHEMA, PLAYOFF_BRACKET_SCHEMA]
+
     for schema in schemas:
         logger.info(f"Converting {schema.entity_type} data to DynamoDB items.")
-        if schema in [TEAMS_SCHEMA, MATCHUPS_SCHEMA]:
+        if schema in [TEAMS_SCHEMA, MATCHUPS_SCHEMA, PLAYOFF_BRACKET_SCHEMA]:
             rel = con.sql(QUERIES[schema.entity_type.value][platform])
         else:
             rel = con.sql(QUERIES[schema.entity_type.value])
