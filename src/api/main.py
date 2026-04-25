@@ -298,11 +298,14 @@ def delete_prefixed_items(table_name: str, pk_value: str, sk_prefix: str) -> Non
         items = response.get("Items", [])
         for i in range(0, len(items), 25):
             batch = items[i : i + 25]
-            dynamodb_client.batch_write_item(
-                RequestItems={
-                    table_name: [{"DeleteRequest": {"Key": item}} for item in batch]
-                }
-            )
+            unprocessed = [{"DeleteRequest": {"Key": item}} for item in batch]
+            while unprocessed:
+                batch_response = dynamodb_client.batch_write_item(
+                    RequestItems={table_name: unprocessed}
+                )
+                unprocessed = batch_response.get("UnprocessedItems", {}).get(
+                    table_name, []
+                )
         total_deleted += len(items)
         last_key = response.get("LastEvaluatedKey")
         if not last_key:
@@ -472,15 +475,21 @@ def delete_league(
             },
         )
 
-        lookup_response = table.query(
-            IndexName="GSI1",
-            KeyConditionExpression=Key("canonical_league_id").eq(canonical_league_id),
-        )
-        lookup_items = lookup_response.get("Items", [])
-        if lookup_items:
-            with table.batch_writer() as writer:
-                for item in lookup_items:
+        lookup_kwargs: dict = {
+            "IndexName": "GSI1",
+            "KeyConditionExpression": Key("canonical_league_id").eq(
+                canonical_league_id
+            ),
+        }
+        with table.batch_writer() as writer:
+            while True:
+                lookup_response = table.query(**lookup_kwargs)
+                for item in lookup_response.get("Items", []):
                     writer.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
+                last_key = lookup_response.get("LastEvaluatedKey")
+                if not last_key:
+                    break
+                lookup_kwargs["ExclusiveStartKey"] = last_key
 
         prefixes_to_clear = [
             "MATCHUPS#",
