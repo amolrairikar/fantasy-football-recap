@@ -16,6 +16,15 @@ QUERIES = {
             AND m.season = t.season
         """,
         "SLEEPER": """
+        WITH sleeper_ranks AS (
+            SELECT season, CAST(winner AS STRING) AS team_id, position AS final_rank
+            FROM brackets
+            WHERE position IS NOT NULL AND winner IS NOT NULL
+            UNION ALL
+            SELECT season, CAST(loser AS STRING) AS team_id, position + 1 AS final_rank
+            FROM brackets
+            WHERE position IS NOT NULL AND loser IS NOT NULL
+        )
         SELECT
             u.display_name,
             CAST(r.roster_id AS STRING) AS team_id,
@@ -24,10 +33,12 @@ QUERIES = {
             u.season,
             u.user_id AS primary_owner_id,
             NULL AS secondary_owner_id,
-            NULL AS final_rank
+            sr.final_rank
         FROM users u
         INNER JOIN rosters r
             ON (u.user_id = r.owner_id AND u.league_id = r.league_id)
+        LEFT JOIN sleeper_ranks sr
+            ON (CAST(r.roster_id AS STRING) = sr.team_id AND u.season = sr.season)
         """,
     },
     "MATCHUPS": {
