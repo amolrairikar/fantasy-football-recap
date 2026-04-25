@@ -474,10 +474,6 @@ function ManagerComparisonInner({
   return (
     <div className="flex flex-1 flex-col p-6 overflow-auto">
       <div className="max-w-275 mx-auto w-full">
-        <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground text-center mb-5">
-          LeagueQL — Manager Comparison
-        </p>
-
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,275px)] gap-4 items-stretch">
           <div className="flex flex-col gap-3">
             {/* Manager selectors */}

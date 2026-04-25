@@ -8,7 +8,8 @@ QUERIES = {
             t.logo AS team_logo,
             t.season,
             t.owners[1] AS primary_owner_id,
-            t.owners[2] AS secondary_owner_id
+            t.owners[2] AS secondary_owner_id,
+            t.rankCalculatedFinal AS final_rank
         FROM teams t
         INNER JOIN members m
             ON t.primaryOwner = m.id
@@ -22,7 +23,8 @@ QUERIES = {
             'https://sleepercdn.com/avatars/thumbs/' || u.avatar AS team_logo,
             u.season,
             u.user_id AS primary_owner_id,
-            NULL AS secondary_owner_id
+            NULL AS secondary_owner_id,
+            NULL AS final_rank
         FROM users u
         INNER JOIN rosters r
             ON (u.user_id = r.owner_id AND u.league_id = r.league_id)
@@ -247,6 +249,7 @@ QUERIES = {
         t.team_name,
         t.team_logo,
         t.display_name AS owner_username,
+        t.final_rank,
         COUNT(*) AS games_played,
         SUM(p.win) AS wins,
         SUM(p.loss) AS losses,
@@ -270,7 +273,7 @@ QUERIES = {
         ON (p.team_id = t.team_id AND p.season = t.season)
     LEFT JOIN champion c
         ON (p.team_id = c.champion_team_id AND p.season = c.season)
-    GROUP BY p.season, p.team_id, p.owner_id, t.team_name, t.team_logo, t.display_name, c.champion_team_id
+    GROUP BY p.season, p.team_id, p.owner_id, t.team_name, t.team_logo, t.display_name, t.final_rank, c.champion_team_id
     ORDER BY season DESC, wins DESC, total_pf DESC;
     """,
 }
