@@ -16,6 +16,34 @@ QUERIES = {
             AND m.season = t.season
         """,
         "SLEEPER": """
+        WITH playoff_team_counts AS (
+            SELECT season, COUNT(DISTINCT team_id) AS num_playoff_teams
+            FROM (
+                SELECT season, CAST(team_1 AS STRING) AS team_id FROM brackets WHERE bracket_type = 'WINNERS_BRACKET'
+                UNION
+                SELECT season, CAST(team_2 AS STRING) AS team_id FROM brackets WHERE bracket_type = 'WINNERS_BRACKET'
+            )
+            GROUP BY season
+        ),
+        sleeper_ranks AS (
+            SELECT b.season, CAST(b.winner AS STRING) AS team_id,
+                CASE
+                    WHEN b.bracket_type = 'LOSERS_BRACKET' THEN b.position + pt.num_playoff_teams
+                    ELSE b.position
+                END AS final_rank
+            FROM brackets b
+            JOIN playoff_team_counts pt ON b.season = pt.season
+            WHERE b.position IS NOT NULL AND b.winner IS NOT NULL
+            UNION ALL
+            SELECT b.season, CAST(b.loser AS STRING) AS team_id,
+                CASE
+                    WHEN b.bracket_type = 'LOSERS_BRACKET' THEN b.position + 1 + pt.num_playoff_teams
+                    ELSE b.position + 1
+                END AS final_rank
+            FROM brackets b
+            JOIN playoff_team_counts pt ON b.season = pt.season
+            WHERE b.position IS NOT NULL AND b.loser IS NOT NULL
+        )
         SELECT
             u.display_name,
             CAST(r.roster_id AS STRING) AS team_id,
@@ -24,10 +52,12 @@ QUERIES = {
             u.season,
             u.user_id AS primary_owner_id,
             NULL AS secondary_owner_id,
-            NULL AS final_rank
+            sr.final_rank
         FROM users u
         INNER JOIN rosters r
             ON (u.user_id = r.owner_id AND u.league_id = r.league_id)
+        LEFT JOIN sleeper_ranks sr
+            ON (CAST(r.roster_id AS STRING) = sr.team_id AND u.season = sr.season)
         """,
     },
     "MATCHUPS": {

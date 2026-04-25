@@ -520,13 +520,18 @@ def _register_sleeper_raw_data(
     bracket_by_season: dict[str, dict[frozenset, dict]] = defaultdict(dict)
     all_brackets: list[dict] = []
     for item in raw_data:
-        if item["data_type"] == "playoff_bracket":
+        if item["data_type"] in ("playoff_bracket", "losers_bracket"):
             for entry in item["data"]:
                 t1, t2 = entry.get("t1"), entry.get("t2")
                 if t1 is None or t2 is None:
                     continue
                 p = entry.get("p")
-                tier = "WINNERS_BRACKET" if (p is None or p == 1) else "LOSERS_BRACKET"
+                if item["data_type"] == "losers_bracket":
+                    tier = "LOSERS_BRACKET"
+                else:
+                    tier = (
+                        "WINNERS_BRACKET" if (p is None or p == 1) else "LOSERS_BRACKET"
+                    )
                 bracket_by_season[item["season"]][frozenset([t1, t2])] = {
                     "tier": tier,
                 }
@@ -539,6 +544,9 @@ def _register_sleeper_raw_data(
                         "winner": entry.get("w"),
                         "loser": entry.get("l"),
                         "position": p,
+                        "bracket_type": "LOSERS_BRACKET"
+                        if item["data_type"] == "losers_bracket"
+                        else "WINNERS_BRACKET",
                         "team_1_from": json.dumps(entry["t1_from"])
                         if "t1_from" in entry
                         else None,

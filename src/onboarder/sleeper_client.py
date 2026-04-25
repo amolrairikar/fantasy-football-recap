@@ -15,6 +15,7 @@ DATA_FETCH_TYPES = [
     "rosters",
     "matchups",
     "playoff_bracket",
+    "losers_bracket",
     "transactions",
     "drafts",
 ]
@@ -176,6 +177,8 @@ class SleeperClient:
             return f"{SLEEPER_BASE_URL}/league/{league_id}/matchups/{week}"
         elif data_type == "playoff_bracket":
             return f"{SLEEPER_BASE_URL}/league/{league_id}/winners_bracket"
+        elif data_type == "losers_bracket":
+            return f"{SLEEPER_BASE_URL}/league/{league_id}/losers_bracket"
         elif data_type == "transactions":
             return f"{SLEEPER_BASE_URL}/league/{league_id}/transactions/{week}"
         elif data_type == "drafts":
