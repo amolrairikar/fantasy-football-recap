@@ -744,9 +744,7 @@ def lambda_handler(event, context) -> None:
         entity_type=EntityType.PLAYOFF_BRACKET,
     )
 
-    schemas = [TEAMS_SCHEMA, MATCHUPS_SCHEMA, STANDINGS_SCHEMA]
-    if platform == "SLEEPER":
-        schemas.append(PLAYOFF_BRACKET_SCHEMA)
+    schemas = [TEAMS_SCHEMA, MATCHUPS_SCHEMA, STANDINGS_SCHEMA, PLAYOFF_BRACKET_SCHEMA]
 
     for schema in schemas:
         logger.info(f"Converting {schema.entity_type} data to DynamoDB items.")

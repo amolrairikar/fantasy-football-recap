@@ -135,6 +135,46 @@ QUERIES = {
         """,
     },
     "PLAYOFF_BRACKET": {
+        "ESPN": """
+        SELECT
+            ROW_NUMBER() OVER (ORDER BY CAST(m.week AS INTEGER), m.team_a_id) AS match_id,
+            CASE
+                WHEN CAST(m.season AS INTEGER) < 2021 THEN
+                    CASE
+                        WHEN CAST(m.week AS INTEGER) = 14 THEN 1
+                        WHEN CAST(m.week AS INTEGER) = 15 THEN 2
+                        WHEN CAST(m.week AS INTEGER) = 16 THEN 3
+                        ELSE NULL
+                    END
+                ELSE
+                    CASE
+                        WHEN CAST(m.week AS INTEGER) = 15 THEN 1
+                        WHEN CAST(m.week AS INTEGER) = 16 THEN 2
+                        WHEN CAST(m.week AS INTEGER) = 17 THEN 3
+                        ELSE NULL
+                    END
+            END AS round,
+            CAST(m.team_a_id AS STRING) AS team_1_id,
+            t1.display_name AS team_1_display_name,
+            t1.team_name AS team_1_team_name,
+            t1.team_logo AS team_1_team_logo,
+            CAST(m.team_b_id AS STRING) AS team_2_id,
+            t2.display_name AS team_2_display_name,
+            t2.team_name AS team_2_team_name,
+            t2.team_logo AS team_2_team_logo,
+            CAST(m.winner AS STRING) AS winner,
+            CAST(m.loser AS STRING) AS loser,
+            NULL AS position,
+            NULL AS team_1_from,
+            NULL AS team_2_from,
+            CAST(m.season AS STRING) AS season
+        FROM matchups m
+        INNER JOIN teams_output t1
+            ON (CAST(m.team_a_id AS STRING) = t1.team_id AND m.season = t1.season)
+        INNER JOIN teams_output t2
+            ON (CAST(m.team_b_id AS STRING) = t2.team_id AND m.season = t2.season)
+        WHERE m.playoff_tier_type = 'WINNERS_BRACKET'
+        """,
         "SLEEPER": """
         SELECT
             b.match_id,
