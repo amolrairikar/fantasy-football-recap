@@ -3,6 +3,7 @@ import {
   RefreshCw,
   Swords,
   TableProperties,
+  Trophy,
   Trash2,
   Users,
 } from 'lucide-react';
@@ -37,6 +38,7 @@ import { deleteLeague } from '@/features/sidebar/api-calls';
 const navItems = [
   { title: 'Standings', url: '/standings', icon: TableProperties },
   { title: 'Matchups', url: '/matchups', icon: Swords },
+  { title: 'Playoff Bracket', url: '/playoff_bracket', icon: Trophy },
   { title: 'Manager Comparison', url: '/manager_comparison', icon: Users },
 ];
 
