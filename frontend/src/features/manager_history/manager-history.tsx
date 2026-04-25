@@ -637,7 +637,7 @@ function ManagerHistoryContent({ promise }: { promise: Promise<DataResult> }) {
                 {s.year}
               </div>
               <div className="text-[11px] text-muted-foreground mt-0.5">
-                {s.team}
+                {s.team || ' '}
               </div>
               <div className="mt-2">{resultBadge(s.result)}</div>
             </div>
