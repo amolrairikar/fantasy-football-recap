@@ -482,7 +482,13 @@ def delete_league(
                 for item in lookup_items:
                     writer.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
 
-        prefixes_to_clear = ["MATCHUPS#", "TEAMS#", "STANDINGS#", "AI_RECAP#"]
+        prefixes_to_clear = [
+            "MATCHUPS#",
+            "TEAMS#",
+            "STANDINGS#",
+            "PLAYOFF_BRACKET#",
+            "AI_RECAP#",
+        ]
         for prefix in prefixes_to_clear:
             delete_prefixed_items(
                 table_name=table_name, pk_value=league_pk, sk_prefix=prefix
