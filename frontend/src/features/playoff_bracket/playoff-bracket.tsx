@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { Trophy, X } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 
 import { BoxScoreCard } from '@/components/box-score-card';
 import SeasonSelect from '@/features/season_select/season-select';
@@ -201,6 +201,13 @@ export default function PlayoffBracket() {
   const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const boxScoreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedMatchId !== null) {
+      boxScoreRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [selectedMatchId]);
 
 
   useEffect(() => {
@@ -539,13 +546,7 @@ export default function PlayoffBracket() {
         {selectedMatchupData && selectedMatch && (
           <>
             <div className="mt-6 mb-2 border-t border-border/50" />
-            <div className="relative">
-              <button
-                onClick={() => setSelectedMatchId(null)}
-                className="absolute -top-2 right-0 p-1.5 rounded-md bg-muted hover:bg-muted/80 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+            <div ref={boxScoreRef}>
               <BoxScoreCard
                 left={{
                   teamLogo: selectedMatch.team_1_team_logo,
@@ -587,3 +588,4 @@ export default function PlayoffBracket() {
     </div>
   );
 }
+

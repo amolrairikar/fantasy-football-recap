@@ -1,4 +1,4 @@
-import { Suspense, use, useMemo, useState } from 'react';
+import { Suspense, use, useEffect, useMemo, useRef, useState } from 'react';
 
 import { BoxScoreCard, type BoxScoreSide } from '@/components/box-score-card';
 import { avatarColor, TeamAvatar } from '@/components/team-avatar';
@@ -217,6 +217,11 @@ function BoxScoreView({
   platform: 'ESPN' | 'SLEEPER';
   season: string;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
   const aWins = matchup.teamA.score > matchup.teamB.score;
   const left: BoxScoreSide = {
     teamLogo: matchup.teamA.teamLogo,
@@ -239,19 +244,14 @@ function BoxScoreView({
     isWinner: !aWins,
   };
   return (
-    <div className="mt-4">
-      <button
-        className="mb-2.5 px-3 py-1.5 text-[12px] font-medium border border-border/50 rounded-md bg-card text-muted-foreground cursor-pointer hover:bg-muted transition-colors"
-        onClick={onClose}
-      >
-        ← Back to matchups
-      </button>
+    <div className="mt-8" ref={ref}>
       <BoxScoreCard
         left={left}
         right={right}
         subtitle={`Week ${matchup.week} · Final`}
         platform={platform}
         season={season}
+        onClose={onClose}
       />
     </div>
   );
