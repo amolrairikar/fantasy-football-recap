@@ -80,7 +80,7 @@ function StandingsBody({ promise }: { promise: Promise<StandingsResult> }) {
                   color={avatarColor(i)}
                 />
                 <div className="flex flex-col">
-                  <span className="text-[13px] font-medium text-foreground font-mono">
+                  <span className="text-[13px] font-medium text-foreground">
                     {row.owner_username}
                   </span>
                   <span className="text-[11px] text-muted-foreground">
@@ -164,7 +164,7 @@ function AwardsGrid({ promise }: { promise: Promise<StandingsResult> }) {
         <div>
           {champion ? (
             <>
-              <div className="text-[15px] font-medium text-foreground font-mono">
+              <div className="text-[15px] font-medium text-foreground">
                 {champion.owner_username}
               </div>
               <div className="text-[12px] text-muted-foreground">
@@ -179,7 +179,7 @@ function AwardsGrid({ promise }: { promise: Promise<StandingsResult> }) {
             </>
           ) : (
             <>
-              <div className="text-[15px] font-medium text-foreground font-mono">
+              <div className="text-[15px] font-medium text-foreground">
                 TBD
               </div>
               <div className="text-[12px] text-muted-foreground">
@@ -220,7 +220,7 @@ function AwardsGrid({ promise }: { promise: Promise<StandingsResult> }) {
           </span>
         </div>
         <div>
-          <div className="text-[15px] font-medium text-foreground font-mono">
+          <div className="text-[15px] font-medium text-foreground">
             {highScorer.owner_username}
           </div>
           <div className="text-[12px] text-muted-foreground">
@@ -252,7 +252,7 @@ function AwardsGrid({ promise }: { promise: Promise<StandingsResult> }) {
           </span>
         </div>
         <div>
-          <div className="text-[15px] font-medium text-foreground font-mono">
+          <div className="text-[15px] font-medium text-foreground">
             {luckiest.owner_username}
           </div>
           <div className="text-[12px] text-muted-foreground">
@@ -371,10 +371,6 @@ export default function SeasonStandings() {
   return (
     <div className="flex flex-1 flex-col p-6 overflow-auto">
       <div className="max-w-225 mx-auto w-full">
-        <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground text-center mb-6">
-          {selectedSeason} Season Standings
-        </p>
-
         <Suspense fallback={<SkeletonAwards />}>
           <AwardsGrid promise={standingsPromise} />
         </Suspense>

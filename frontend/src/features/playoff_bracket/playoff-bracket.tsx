@@ -373,9 +373,6 @@ export default function PlayoffBracket() {
     return (
       <div className="flex flex-1 flex-col p-6 overflow-auto">
         <div className="max-w-262.5 mx-auto w-full">
-          <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground text-center mb-5">
-            LeagueQL — Playoff bracket
-          </p>
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading playoff bracket...</p>
           </div>
@@ -388,9 +385,6 @@ export default function PlayoffBracket() {
     return (
       <div className="flex flex-1 flex-col p-6 overflow-auto">
         <div className="max-w-262.5 mx-auto w-full">
-          <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground text-center mb-5">
-            LeagueQL — Playoff bracket
-          </p>
           <div className="text-center py-12">
             <p className="text-destructive">{error}</p>
           </div>
@@ -402,10 +396,6 @@ export default function PlayoffBracket() {
   return (
     <div className="flex flex-1 flex-col p-6 overflow-auto">
       <div className="max-w-262.5 mx-auto w-full">
-        <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground text-center mb-5">
-          LeagueQL — Playoff bracket
-        </p>
-
         <div className="flex items-center gap-2.5 mb-7 flex-wrap">
           <span className="text-[12px] text-muted-foreground font-medium">Season</span>
           <SeasonSelect

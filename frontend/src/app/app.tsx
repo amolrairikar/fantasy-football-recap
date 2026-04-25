@@ -16,6 +16,7 @@ import LeagueQLLanding from '@/features/landing_page/landing-page';
 import type { NavLinkItem } from '@/features/landing_page/types';
 import LeagueSelection from '@/features/league_selection/league-selection';
 import ManagerComparison from '@/features/manager_comparison/manager-comparison';
+import ManagerHistory from '@/features/manager_history/manager-history';
 import Matchups from '@/features/matchups/matchups';
 import PlayoffBracket from '@/features/playoff_bracket/playoff-bracket';
 import SeasonStandings from '@/features/season_standings/season-standings';
@@ -148,6 +149,16 @@ function App() {
             <ProtectedRoute>
               <AppLayout>
                 <PlayoffBracket />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manager_history"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <ManagerHistory />
               </AppLayout>
             </ProtectedRoute>
           }

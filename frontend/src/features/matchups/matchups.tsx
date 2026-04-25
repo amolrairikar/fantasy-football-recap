@@ -437,10 +437,6 @@ export default function Matchups() {
   return (
     <div className="flex flex-1 flex-col p-6 overflow-auto">
       <div className="max-w-225 mx-auto w-full">
-        <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground text-center mb-6">
-          {selectedSeason} Season Matchups
-        </p>
-
         <div className="flex items-center justify-between mb-4">
           <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
             Matchups

@@ -1,5 +1,6 @@
 import { UserButton } from '@clerk/react';
 import {
+  History,
   RefreshCw,
   Swords,
   TableProperties,
@@ -40,6 +41,7 @@ const navItems = [
   { title: 'Matchups', url: '/matchups', icon: Swords },
   { title: 'Playoff Bracket', url: '/playoff_bracket', icon: Trophy },
   { title: 'Manager Comparison', url: '/manager_comparison', icon: Users },
+  { title: 'Manager History', url: '/manager_history', icon: History },
 ];
 
 function getCookie(name: string): string {
