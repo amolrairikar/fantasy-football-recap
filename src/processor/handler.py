@@ -544,6 +544,9 @@ def _register_sleeper_raw_data(
                         "winner": entry.get("w"),
                         "loser": entry.get("l"),
                         "position": p,
+                        "bracket_type": "LOSERS_BRACKET"
+                        if item["data_type"] == "losers_bracket"
+                        else "WINNERS_BRACKET",
                         "team_1_from": json.dumps(entry["t1_from"])
                         if "t1_from" in entry
                         else None,

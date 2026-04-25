@@ -16,14 +16,33 @@ QUERIES = {
             AND m.season = t.season
         """,
         "SLEEPER": """
-        WITH sleeper_ranks AS (
-            SELECT season, CAST(winner AS STRING) AS team_id, position AS final_rank
-            FROM brackets
-            WHERE position IS NOT NULL AND winner IS NOT NULL
+        WITH playoff_team_counts AS (
+            SELECT season, COUNT(DISTINCT team_id) AS num_playoff_teams
+            FROM (
+                SELECT season, CAST(team_1 AS STRING) AS team_id FROM brackets WHERE bracket_type = 'WINNERS_BRACKET'
+                UNION
+                SELECT season, CAST(team_2 AS STRING) AS team_id FROM brackets WHERE bracket_type = 'WINNERS_BRACKET'
+            )
+            GROUP BY season
+        ),
+        sleeper_ranks AS (
+            SELECT b.season, CAST(b.winner AS STRING) AS team_id,
+                CASE
+                    WHEN b.bracket_type = 'LOSERS_BRACKET' THEN b.position + pt.num_playoff_teams
+                    ELSE b.position
+                END AS final_rank
+            FROM brackets b
+            JOIN playoff_team_counts pt ON b.season = pt.season
+            WHERE b.position IS NOT NULL AND b.winner IS NOT NULL
             UNION ALL
-            SELECT season, CAST(loser AS STRING) AS team_id, position + 1 AS final_rank
-            FROM brackets
-            WHERE position IS NOT NULL AND loser IS NOT NULL
+            SELECT b.season, CAST(b.loser AS STRING) AS team_id,
+                CASE
+                    WHEN b.bracket_type = 'LOSERS_BRACKET' THEN b.position + 1 + pt.num_playoff_teams
+                    ELSE b.position + 1
+                END AS final_rank
+            FROM brackets b
+            JOIN playoff_team_counts pt ON b.season = pt.season
+            WHERE b.position IS NOT NULL AND b.loser IS NOT NULL
         )
         SELECT
             u.display_name,
