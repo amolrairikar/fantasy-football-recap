@@ -1,5 +1,6 @@
-import { Suspense, use, useMemo, useState } from 'react';
+import { Suspense, use, useEffect, useMemo, useRef, useState } from 'react';
 
+import { BoxScoreCard, type BoxScoreSide } from '@/components/box-score-card';
 import { avatarColor } from '@/components/team-avatar';
 import {
   Select,
@@ -132,7 +133,17 @@ function extractEntries(
   return entries;
 }
 
-function PositionCard({ pos, rows }: { pos: string; rows: ScoringRecord[] }) {
+function PositionCard({
+  pos,
+  rows,
+  selectedKey,
+  onRowClick,
+}: {
+  pos: string;
+  rows: ScoringRecord[];
+  selectedKey: string | null;
+  onRowClick: (key: string) => void;
+}) {
   const meta = POS_META[pos];
   const maxPts = rows[0]?.pts ?? 1;
 
@@ -177,11 +188,14 @@ function PositionCard({ pos, rows }: { pos: string; rows: ScoringRecord[] }) {
           {rows.map((r, i) => {
             const barPct = Math.round((r.pts / maxPts) * 100);
             const isGold = i === 0;
+            const rowKey = `${r.player}-${r.season}-${r.week}`;
+            const isSelected = selectedKey === rowKey;
 
             return (
               <tr
-                key={`${r.player}-${r.season}-${r.week}`}
-                className="border-b border-border/50 last:border-0"
+                key={rowKey}
+                className={`border-b border-border/50 last:border-0 cursor-pointer transition-colors ${isSelected ? 'bg-muted/60' : 'hover:bg-muted/40'}`}
+                onClick={() => onRowClick(isSelected ? '' : rowKey)}
               >
                 <td
                   className="px-3 py-2"
@@ -234,6 +248,58 @@ function PositionCard({ pos, rows }: { pos: string; rows: ScoringRecord[] }) {
   );
 }
 
+function BoxScoreView({
+  matchup,
+  colorMap,
+  onClose,
+  platform,
+}: {
+  matchup: MatchupItem;
+  colorMap: Map<string, string>;
+  onClose: () => void;
+  platform: 'ESPN' | 'SLEEPER';
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const aWins = matchup.team_a_score > matchup.team_b_score;
+  const left: BoxScoreSide = {
+    teamLogo: matchup.team_a_team_logo,
+    teamName: matchup.team_a_team_name,
+    ownerUsername: matchup.team_a_display_name,
+    color: colorMap.get(matchup.team_a_id) ?? '#6b7280',
+    score: matchup.team_a_score,
+    starters: matchup.team_a_starters ?? [],
+    bench: matchup.team_a_bench ?? [],
+    isWinner: aWins,
+  };
+  const right: BoxScoreSide = {
+    teamLogo: matchup.team_b_team_logo,
+    teamName: matchup.team_b_team_name,
+    ownerUsername: matchup.team_b_display_name,
+    color: colorMap.get(matchup.team_b_id) ?? '#6b7280',
+    score: matchup.team_b_score,
+    starters: matchup.team_b_starters ?? [],
+    bench: matchup.team_b_bench ?? [],
+    isWinner: !aWins,
+  };
+
+  return (
+    <div className="mt-8" ref={ref}>
+      <BoxScoreCard
+        left={left}
+        right={right}
+        subtitle={`Week ${matchup.week} · Final`}
+        platform={platform}
+        season={matchup.season}
+        onClose={onClose}
+      />
+    </div>
+  );
+}
+
 function SkeletonScoringRecords() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -271,7 +337,13 @@ function SkeletonScoringRecords() {
 
 type Result = { ok: true; data: MatchupItem[] } | { ok: false; error: string };
 
-function ScoringRecordsContent({ promise }: { promise: Promise<Result> }) {
+function ScoringRecordsContent({
+  promise,
+  platform,
+}: {
+  promise: Promise<Result>;
+  platform: 'ESPN' | 'SLEEPER';
+}) {
   const result = use(promise);
 
   const matchups = result.ok ? result.data : EMPTY_MATCHUPS;
@@ -294,6 +366,7 @@ function ScoringRecordsContent({ promise }: { promise: Promise<Result> }) {
 
   const [season, setSeason] = useState<string>('all');
   const [manager, setManager] = useState<string>('all');
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   const positionCards = useMemo(() => {
     const filtered = allRecords.filter((r) => {
@@ -311,6 +384,34 @@ function ScoringRecordsContent({ promise }: { promise: Promise<Result> }) {
     }).filter(({ rows }) => rows.length > 0);
   }, [allRecords, season, manager]);
 
+  const selectedRecord = useMemo(() => {
+    if (!selectedKey) return null;
+    for (const { rows } of positionCards) {
+      const found = rows.find(
+        (r) => `${r.player}-${r.season}-${r.week}` === selectedKey,
+      );
+      if (found) return found;
+    }
+    return null;
+  }, [selectedKey, positionCards]);
+
+  const selectedMatchup = useMemo(() => {
+    if (!selectedRecord) return null;
+    return (
+      matchups.find(
+        (m) =>
+          m.season === selectedRecord.season &&
+          parseInt(m.week, 10) === selectedRecord.week &&
+          (m.team_a_display_name === selectedRecord.manager ||
+            m.team_b_display_name === selectedRecord.manager),
+      ) ?? null
+    );
+  }, [selectedRecord, matchups]);
+
+  const handleRowClick = (key: string) => {
+    setSelectedKey(key || null);
+  };
+
   if (!result.ok) {
     return <p className="text-[13px] text-destructive">{result.error}</p>;
   }
@@ -321,7 +422,13 @@ function ScoringRecordsContent({ promise }: { promise: Promise<Result> }) {
         <span className="text-[12px] font-medium text-muted-foreground">
           Season
         </span>
-        <Select value={season} onValueChange={setSeason}>
+        <Select
+          value={season}
+          onValueChange={(v) => {
+            setSeason(v);
+            setSelectedKey(null);
+          }}
+        >
           <SelectTrigger size="sm" className="w-32">
             <SelectValue />
           </SelectTrigger>
@@ -338,7 +445,13 @@ function ScoringRecordsContent({ promise }: { promise: Promise<Result> }) {
         <span className="text-[12px] font-medium text-muted-foreground ml-2">
           Manager
         </span>
-        <Select value={manager} onValueChange={setManager}>
+        <Select
+          value={manager}
+          onValueChange={(v) => {
+            setManager(v);
+            setSelectedKey(null);
+          }}
+        >
           <SelectTrigger size="sm" className="w-36">
             <SelectValue />
           </SelectTrigger>
@@ -360,9 +473,25 @@ function ScoringRecordsContent({ promise }: { promise: Promise<Result> }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {positionCards.map(({ pos, rows }) => (
-            <PositionCard key={pos} pos={pos} rows={rows} />
+            <PositionCard
+              key={pos}
+              pos={pos}
+              rows={rows}
+              selectedKey={selectedKey}
+              onRowClick={handleRowClick}
+            />
           ))}
         </div>
+      )}
+
+      {selectedMatchup !== null && (
+        <BoxScoreView
+          key={selectedKey}
+          matchup={selectedMatchup}
+          colorMap={colorMap}
+          onClose={() => setSelectedKey(null)}
+          platform={platform}
+        />
       )}
     </>
   );
@@ -406,7 +535,7 @@ export default function ScoringRecords() {
             </div>
           }
         >
-          <ScoringRecordsContent promise={promise} />
+          <ScoringRecordsContent promise={promise} platform={platform} />
         </Suspense>
       </div>
     </div>
