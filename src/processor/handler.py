@@ -515,6 +515,9 @@ def _register_espn_raw_data(
             for record in item["data"].get("player_scoring_totals", []):
                 record_copy = record.copy()
                 record_copy["season"] = item["season"]
+                record_copy["position"] = ESPN_POSITION_ID_MAPPING.get(
+                    record["position"]
+                )
                 all_player_scoring_totals.append(record_copy)
 
     brackets = _build_espn_brackets(all_matchups)
