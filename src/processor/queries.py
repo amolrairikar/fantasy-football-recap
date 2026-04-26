@@ -281,8 +281,6 @@ QUERIES = {
         c.week AS snapshot_week,
         c.team_id,
         c.owner_id,
-        t.team_name,
-        t.team_logo,
         t.display_name AS owner_username,
         c.games_played,
         c.wins,
@@ -292,19 +290,11 @@ QUERIES = {
             CAST(c.wins AS STRING), '-',
             CAST(c.losses AS STRING), '-',
             CAST(c.ties AS STRING)
-        ) AS record,
-        ROUND(c.wins / c.games_played::DOUBLE, 3) AS win_pct,
-        c.total_vs_league_wins,
-        c.total_vs_league_losses,
-        ROUND(c.total_vs_league_wins / (c.total_vs_league_wins + c.total_vs_league_losses)::DOUBLE, 3) AS win_pct_vs_league,
-        c.total_pf,
-        c.total_pa,
-        ROUND(c.total_pf / c.games_played::DOUBLE, 2) AS avg_pf,
-        ROUND(c.total_pa / c.games_played::DOUBLE, 2) AS avg_pa
+        ) AS record
     FROM cumulative_stats c
     INNER JOIN teams_output t
         ON (c.team_id = t.team_id AND c.season = t.season)
-    ORDER BY season DESC, CAST(snapshot_week AS INTEGER) DESC, wins DESC, total_pf DESC;
+    ORDER BY season DESC, CAST(snapshot_week AS INTEGER) DESC, wins DESC;
     """,
     "STANDINGS": """
     WITH weekly_stats AS (
