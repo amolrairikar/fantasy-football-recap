@@ -68,8 +68,6 @@ export const FEATURES: Feature[] = [
 ];
 
 export const FOOTER_LINKS: string[] = [
-  'GitHub',
-  'Changelog',
-  'Docs',
+  'About',
   'Privacy',
 ];

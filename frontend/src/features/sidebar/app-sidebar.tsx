@@ -2,6 +2,7 @@ import { UserButton } from '@clerk/react';
 import {
   History,
   RefreshCw,
+  Scroll,
   Star,
   Swords,
   TableProperties,
@@ -43,6 +44,7 @@ const navItems = [
   { title: 'Playoff Bracket', url: '/playoff_bracket', icon: Trophy },
   { title: 'Manager Comparison', url: '/manager_comparison', icon: Users },
   { title: 'Manager History', url: '/manager_history', icon: History },
+  { title: 'Draft Recap', url: '/draft_recap', icon: Scroll },
   { title: 'Scoring Records', url: '/scoring_records', icon: Star },
 ];
 
