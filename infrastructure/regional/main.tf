@@ -125,7 +125,7 @@ module "player_metadata_lambda" {
 
 resource "aws_cloudwatch_event_rule" "player_metadata_schedule" {
   name                = "player-metadata-refresh-${var.environment}-${local.region}"
-  schedule_expression = "cron(0 6 */2 * ? *)"
+  schedule_expression = "cron(0 12 ? * TUE,THU *)"
   state               = local.region == "east" ? "ENABLED" : "DISABLED"
 
   tags = {

@@ -136,7 +136,7 @@ export default function LeagueConnect() {
         })();
       }, 1000);
 
-      const timeoutId = setTimeout(() => cleanup('failed'), 20000);
+      const timeoutId = setTimeout(() => cleanup('failed'), 30000);
     });
   };
 
