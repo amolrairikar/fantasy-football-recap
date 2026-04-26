@@ -80,7 +80,7 @@ export default function PrivacyPage() {
             <li><strong>ESPN API:</strong> Source of ESPN fantasy football data</li>
             <li><strong>Sleeper API:</strong> Source of Sleeper fantasy football data</li>
             <li><strong>AWS:</strong> Application hosting</li>
-            <li><strong>Anthropic (Claude):</strong> AI recap generation</li>
+            <li><strong>Anthropic:</strong> AI recap generation</li>
           </ul>
         </section>
 
