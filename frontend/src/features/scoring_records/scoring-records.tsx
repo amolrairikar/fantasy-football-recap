@@ -148,9 +148,6 @@ function PositionCard({ pos, rows }: { pos: string; rows: ScoringRecord[] }) {
         <span className="text-[13px] font-medium text-foreground">
           {meta.label}
         </span>
-        <span className="text-[11px] text-muted-foreground ml-auto">
-          {rows.length} records
-        </span>
       </div>
 
       <table
