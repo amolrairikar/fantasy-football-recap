@@ -21,6 +21,8 @@ import Matchups from '@/features/matchups/matchups';
 import PlayoffBracket from '@/features/playoff_bracket/playoff-bracket';
 import ScoringRecords from '@/features/scoring_records/scoring-records';
 import SeasonStandings from '@/features/season_standings/season-standings';
+import DraftRecap from '@/features/draft_recap/draft-recap';
+import PrivacyPage from '@/features/privacy/privacy-page';
 import { AppSidebar } from '@/features/sidebar/app-sidebar';
 
 function NavLink({
@@ -174,6 +176,25 @@ function App() {
                 <ScoringRecords />
               </AppLayout>
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/draft_recap"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <DraftRecap />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/privacy"
+          element={
+            <>
+              <Header />
+              <PrivacyPage />
+            </>
           }
         />
       </Routes>

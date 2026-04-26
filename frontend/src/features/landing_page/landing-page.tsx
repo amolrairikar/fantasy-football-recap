@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { AboutDialog } from '@/features/about/about-dialog';
+import { PrivacyDialog } from '@/features/privacy/privacy-dialog';
 import {
   SLIDES,
   FEATURES,
@@ -226,12 +228,22 @@ export default function LeagueQLLanding() {
   const { isSignedIn } = useUser();
   const navigate = useNavigate();
   const [authOpen, setAuthOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
 
   function handleConnectLeague() {
     if (isSignedIn) {
       void navigate('/league');
     } else {
       setAuthOpen(true);
+    }
+  }
+
+  function handleFooterLinkClick(link: string) {
+    if (link === 'About') {
+      setAboutOpen(true);
+    } else if (link === 'Privacy') {
+      setPrivacyOpen(true);
     }
   }
 
@@ -305,6 +317,9 @@ export default function LeagueQLLanding() {
         </DialogContent>
       </Dialog>
 
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      <PrivacyDialog open={privacyOpen} onOpenChange={setPrivacyOpen} />
+
       <Slideshow />
 
       <section className="relative z-10 px-6 pb-24">
@@ -344,21 +359,23 @@ export default function LeagueQLLanding() {
 
         <div className="flex gap-6">
           {FOOTER_LINKS.map((l: string) => (
-            <a
+            <button
               key={l}
-              href="#"
+              type="button"
+              onClick={() => handleFooterLinkClick(l)}
               className="
                 font-mono text-[0.72rem] tracking-wide text-muted-foreground
                 hover:text-foreground no-underline transition-colors duration-200
+                bg-transparent border-none cursor-pointer p-0
               "
             >
               {l}
-            </a>
+            </button>
           ))}
         </div>
 
         <span className="font-mono text-[0.68rem] text-muted-foreground/50">
-          © 2026 LeagueQL
+          © 2026 Amol Rairikar
         </span>
       </footer>
 
