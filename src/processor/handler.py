@@ -48,6 +48,7 @@ class EntityType(str, Enum):
     STANDINGS = "STANDINGS"
     WEEKLY_STANDINGS = "WEEKLY_STANDINGS"
     PLAYOFF_BRACKET = "PLAYOFF_BRACKET"
+    DRAFT = "DRAFT"
 
 
 @dataclass(frozen=True)
@@ -420,7 +421,13 @@ def _register_espn_raw_data(
     Returns:
         Dict with keys 'members', 'teams', 'matchups', and 'brackets', each mapping to a list of row dicts.
     """
-    all_members, all_teams, all_matchups = [], [], []
+    all_members, all_teams, all_matchups, all_draft_picks, all_player_scoring_totals = (
+        [],
+        [],
+        [],
+        [],
+        [],
+    )
     for item in raw_data:
         if item["data_type"] == "users":
             for record in item["data"].get("members", []):
@@ -499,6 +506,35 @@ def _register_espn_raw_data(
                         "season": item["season"],
                     }
                 )
+        elif item["data_type"] == "draft_picks":
+            for record in item["data"].get("picks", []):
+                record_copy = record.copy()
+                record_copy["season"] = item["season"]
+                all_draft_picks.append(record_copy)
+        elif item["data_type"] == "player_scoring_totals":
+            for record in item["data"].get("players", []):
+                if ESPN_POSITION_ID_MAPPING.get(
+                    record["player"]["defaultPositionId"], ""
+                ):
+                    player_scoring_info = {}
+                    player_scoring_info["player_id"] = record["id"]
+                    player_scoring_info["player_name"] = record["player"]["fullName"]
+                    player_scoring_info["position"] = ESPN_POSITION_ID_MAPPING[
+                        record["player"]["defaultPositionId"]
+                    ]
+                    player_scoring_info["season"] = item["season"]
+                    if int(item["season"]) >= 2018:
+                        if record.get("ratings", {}):
+                            player_scoring_info["total_points"] = round(
+                                record["ratings"]["0"]["totalRating"], 2
+                            )
+                        else:
+                            continue  # No scoring data available for player, do not add to results
+                    else:
+                        player_scoring_info["total_points"] = round(
+                            record["player"]["stats"][0]["appliedTotal"], 2
+                        )
+                    all_player_scoring_totals.append(player_scoring_info)
 
     brackets = _build_espn_brackets(all_matchups)
     return {
@@ -506,6 +542,8 @@ def _register_espn_raw_data(
         "teams": all_teams,
         "matchups": all_matchups,
         "brackets": brackets,
+        "draft_picks": all_draft_picks,
+        "player_scoring_totals": all_player_scoring_totals,
     }
 
 
@@ -920,15 +958,27 @@ def lambda_handler(event, context) -> None:
         entity_type=EntityType.WEEKLY_STANDINGS,
     )
 
+    DRAFT_SCHEMA = KeySchema(
+        pk=f"LEAGUE#{canonical_league_id}",
+        sk=lambda row: f"DRAFT#{row['season']}",
+        entity_type=EntityType.DRAFT,
+    )
+
     schemas = [
         TEAMS_SCHEMA,
         MATCHUPS_SCHEMA,
         STANDINGS_SCHEMA,
         WEEKLY_STANDINGS_SCHEMA,
         PLAYOFF_BRACKET_SCHEMA,
+        DRAFT_SCHEMA,
     ]
 
-    platform_specific_schemas = [TEAMS_SCHEMA, MATCHUPS_SCHEMA, PLAYOFF_BRACKET_SCHEMA]
+    platform_specific_schemas = [
+        TEAMS_SCHEMA,
+        MATCHUPS_SCHEMA,
+        PLAYOFF_BRACKET_SCHEMA,
+        DRAFT_SCHEMA,
+    ]
 
     for schema in schemas:
         logger.info(f"Converting {schema.entity_type} data to DynamoDB items.")

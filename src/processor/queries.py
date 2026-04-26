@@ -386,4 +386,37 @@ QUERIES = {
     GROUP BY p.season, p.team_id, p.owner_id, t.team_name, t.team_logo, t.display_name, t.final_rank, c.champion_team_id
     ORDER BY season DESC, wins DESC, total_pf DESC;
     """,
+    "DRAFT": {
+        "ESPN": """
+        SELECT
+            CAST(dp.teamId AS STRING) AS team_id,
+            t.display_name AS owner_username,
+            t.team_name,
+            t.team_logo,
+            dp.id AS pick_id,
+            dp.roundId AS round,
+            dp.roundPickNumber AS round_pick_number,
+            dp.overallPickNumber AS overall_pick_number,
+            CAST(dp.playerId AS STRING) AS player_id,
+            pst.player_name,
+            pst.position,
+            pst.total_points,
+            dp.keeper,
+            dp.reservedForKeeper AS reserved_for_keeper,
+            dp.autoDraftTypeId AS auto_draft_type_id,
+            dp.bidAmount AS bid_amount,
+            dp.lineupSlotId AS lineup_slot_id,
+            dp.memberId AS member_id,
+            dp.nominatingTeamId AS nominating_team_id,
+            dp.tradeLocked AS trade_locked,
+            dp.season
+        FROM draft_picks dp
+        INNER JOIN teams_output t
+            ON (CAST(dp.teamId AS STRING) = t.team_id AND dp.season = t.season)
+        LEFT JOIN player_scoring_totals pst
+            ON (dp.playerId = pst.player_id AND dp.season = pst.season)
+        ORDER BY dp.season, dp.overallPickNumber
+        """,
+        "SLEEPER": "",
+    },
 }
