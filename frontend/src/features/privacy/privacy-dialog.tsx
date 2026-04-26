@@ -28,7 +28,7 @@ export function PrivacyDialog({ open, onOpenChange }: PrivacyDialogProps) {
         </DialogHeader>
         <div className="space-y-4 text-sm">
           <p className="text-muted-foreground">
-            We collect league data from ESPN and Sleeper to provide insights, standings, matchups, and AI-generated recaps. Your data is stored securely and never sold.
+            We collect league data from ESPN and Sleeper to provide analytics about your league history. Your data is stored securely and never sold.
           </p>
           <Button onClick={handleViewFullPolicy} className="w-full cursor-pointer">
             View Full Privacy Policy
