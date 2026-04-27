@@ -472,6 +472,37 @@ QUERIES = {
             ON (ds.position = rl.position AND ds.season = rl.season)
         ORDER BY ds.season, ds.overallPickNumber
         """,
-        "SLEEPER": "",
+        "SLEEPER": """
+        SELECT
+            CAST(dp.roster_id AS STRING) AS team_id,
+            t.display_name AS owner_username,
+            t.team_name,
+            t.team_logo,
+            NULL AS pick_id,
+            dp.round,
+            dp.draft_slot AS round_pick_number,
+            dp.pick_no AS overall_pick_number,
+            dp.player_id,
+            dp.metadata.first_name || ' ' || dp.metadata.last_name AS player_name,
+            dp.metadata.position AS position,
+            NULL AS total_points,
+            dp.is_keeper AS keeper,
+            NULL AS reserved_for_keeper,
+            NULL AS auto_draft_type_id,
+            NULL AS bid_amount,
+            NULL AS lineup_slot_id,
+            dp.picked_by AS member_id,
+            NULL AS nominating_team_id,
+            NULL AS trade_locked,
+            dp.season,
+            NULL AS drafted_position_rank,
+            NULL AS actual_position_rank,
+            NULL AS draft_rank_delta,
+            NULL AS vorp
+        FROM draft_picks dp
+        INNER JOIN teams_output t
+            ON (CAST(dp.roster_id AS STRING) = t.team_id AND dp.season = t.season)
+        ORDER BY dp.season, dp.pick_no
+        """,
     },
 }

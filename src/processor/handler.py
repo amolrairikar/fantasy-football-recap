@@ -589,7 +589,7 @@ def _register_sleeper_raw_data(
                     }
                 )
 
-    all_users, all_rosters, all_matchups = [], [], []
+    all_users, all_rosters, all_matchups, all_draft_picks = [], [], [], []
     for item in raw_data:
         if item["data_type"] == "users":
             for record in item["data"]:
@@ -676,12 +676,18 @@ def _register_sleeper_raw_data(
                         "team_a_season": item["season"],
                     }
                 )
+        elif item["data_type"] == "draft_picks":
+            for record in item["data"]:
+                record_copy = record.copy()
+                record_copy["season"] = item["season"]
+                all_draft_picks.append(record_copy)
 
     return {
         "users": all_users,
         "rosters": all_rosters,
         "matchups": all_matchups,
         "brackets": all_brackets,
+        "draft_picks": all_draft_picks,
     }
 
 

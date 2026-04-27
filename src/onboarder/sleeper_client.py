@@ -225,7 +225,45 @@ class SleeperClient:
                 for url_data in self.request_urls
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            return self._process_api_results(results=results)
+            processed_results = self._process_api_results(results=results)
+
+            draft_pick_urls = self._build_draft_pick_urls(processed_results)
+            if draft_pick_urls:
+                pick_tasks = [
+                    self._fetch(session=session, semaphore=semaphore, url_data=url_data)
+                    for url_data in draft_pick_urls
+                ]
+                pick_results = await asyncio.gather(*pick_tasks, return_exceptions=True)
+                processed_results.extend(
+                    self._process_api_results(results=pick_results)
+                )
+
+            return processed_results
+
+    def _build_draft_pick_urls(
+        self, results: list[dict[str, Any]]
+    ) -> list[tuple[str, str, str]]:
+        """
+        Builds pick URLs from draft metadata results.
+
+        Args:
+            results: Processed API results containing draft metadata.
+
+        Returns:
+            List of tuples containing the season, data type, and pick URL for each draft.
+        """
+        urls = []
+        for result in results:
+            if result["data_type"] == "drafts":
+                season = result["season"]
+                drafts_data = result["data"]
+                if isinstance(drafts_data, list):
+                    for draft in drafts_data:
+                        draft_id = draft.get("draft_id")
+                        if draft_id:
+                            url = f"{SLEEPER_BASE_URL}/draft/{draft_id}/picks"
+                            urls.append((season, f"draft_picks_{draft_id}", url))
+        return urls
 
     async def _fetch(
         self,
