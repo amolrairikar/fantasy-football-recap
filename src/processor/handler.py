@@ -151,9 +151,9 @@ def compile_sleeper_starter_stats(
     stats = [
         {
             "player_id": player_id,
-            "full_name": player_metadata.get(player_id, {}).get("first_name")
+            "full_name": (player_metadata.get(player_id, {}).get("first_name") or "")
             + " "
-            + player_metadata.get(player_id, {}).get("last_name"),
+            + (player_metadata.get(player_id, {}).get("last_name") or ""),
             "points_scored": points,
             "position": "D/ST"
             if player_metadata.get(player_id, {}).get("position") == "DEF"
