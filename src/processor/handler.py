@@ -151,9 +151,13 @@ def compile_sleeper_starter_stats(
     stats = [
         {
             "player_id": player_id,
-            "full_name": player_metadata.get(player_id, {}).get("full_name"),
+            "full_name": player_metadata.get(player_id, {}).get("first_name")
+            + " "
+            + player_metadata.get(player_id, {}).get("last_name"),
             "points_scored": points,
-            "position": player_metadata.get(player_id, {}).get("position"),
+            "position": "D/ST"
+            if player_metadata.get(player_id, {}).get("position") == "DEF"
+            else player_metadata.get(player_id, {}).get("position"),
             "fantasy_position": None,
         }
         for player_id, points in zip(starters, starters_points)

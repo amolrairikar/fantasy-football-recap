@@ -31,10 +31,14 @@ def lambda_handler(event, context) -> None:
     bucket = os.environ["S3_BUCKET_NAME"]
     logger.info("Fetching Sleeper NFL player metadata from %s", SLEEPER_PLAYERS_URL)
 
-    response = requests.get(SLEEPER_PLAYERS_URL, timeout=60)
-    response.raise_for_status()
-    players_data = response.json()
-    logger.info("Fetched metadata for %d players", len(players_data))
+    try:
+        response = requests.get(SLEEPER_PLAYERS_URL, timeout=60)
+        response.raise_for_status()
+        players_data = response.json()
+        logger.info("Fetched metadata for %d players", len(players_data))
+    except Exception as e:
+        logger.error("Failed to fetch player metadata: %s", e)
+        raise
 
     s3_client.put_object(
         Bucket=bucket,
