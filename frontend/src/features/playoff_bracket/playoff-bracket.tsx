@@ -396,8 +396,7 @@ export default function PlayoffBracket() {
   return (
     <div className="flex flex-1 flex-col p-6 overflow-auto">
       <div className="max-w-262.5 mx-auto w-full">
-        <div className="flex items-center gap-2.5 mb-7 flex-wrap">
-          <span className="text-[12px] text-muted-foreground font-medium">Season</span>
+        <div className="mb-7">
           <SeasonSelect
             seasons={seasonOptions}
             value={selectedSeason}

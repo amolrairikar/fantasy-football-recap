@@ -48,6 +48,7 @@ class EntityType(str, Enum):
     STANDINGS = "STANDINGS"
     WEEKLY_STANDINGS = "WEEKLY_STANDINGS"
     PLAYOFF_BRACKET = "PLAYOFF_BRACKET"
+    DRAFT = "DRAFT"
 
 
 @dataclass(frozen=True)
@@ -420,7 +421,13 @@ def _register_espn_raw_data(
     Returns:
         Dict with keys 'members', 'teams', 'matchups', and 'brackets', each mapping to a list of row dicts.
     """
-    all_members, all_teams, all_matchups = [], [], []
+    all_members, all_teams, all_matchups, all_draft_picks, all_player_scoring_totals = (
+        [],
+        [],
+        [],
+        [],
+        [],
+    )
     for item in raw_data:
         if item["data_type"] == "users":
             for record in item["data"].get("members", []):
@@ -499,6 +506,19 @@ def _register_espn_raw_data(
                         "season": item["season"],
                     }
                 )
+        elif item["data_type"] == "draft_picks":
+            for record in item["data"].get("draft_picks", []):
+                record_copy = record.copy()
+                record_copy["season"] = item["season"]
+                all_draft_picks.append(record_copy)
+        elif item["data_type"] == "player_scoring_totals":
+            for record in item["data"].get("player_scoring_totals", []):
+                record_copy = record.copy()
+                record_copy["season"] = item["season"]
+                record_copy["position"] = ESPN_POSITION_ID_MAPPING.get(
+                    record["position"]
+                )
+                all_player_scoring_totals.append(record_copy)
 
     brackets = _build_espn_brackets(all_matchups)
     return {
@@ -506,6 +526,8 @@ def _register_espn_raw_data(
         "teams": all_teams,
         "matchups": all_matchups,
         "brackets": brackets,
+        "draft_picks": all_draft_picks,
+        "player_scoring_totals": all_player_scoring_totals,
     }
 
 
@@ -920,15 +942,27 @@ def lambda_handler(event, context) -> None:
         entity_type=EntityType.WEEKLY_STANDINGS,
     )
 
+    DRAFT_SCHEMA = KeySchema(
+        pk=f"LEAGUE#{canonical_league_id}",
+        sk=lambda row: f"DRAFT#{row['season']}",
+        entity_type=EntityType.DRAFT,
+    )
+
     schemas = [
         TEAMS_SCHEMA,
         MATCHUPS_SCHEMA,
         STANDINGS_SCHEMA,
         WEEKLY_STANDINGS_SCHEMA,
         PLAYOFF_BRACKET_SCHEMA,
+        DRAFT_SCHEMA,
     ]
 
-    platform_specific_schemas = [TEAMS_SCHEMA, MATCHUPS_SCHEMA, PLAYOFF_BRACKET_SCHEMA]
+    platform_specific_schemas = [
+        TEAMS_SCHEMA,
+        MATCHUPS_SCHEMA,
+        PLAYOFF_BRACKET_SCHEMA,
+        DRAFT_SCHEMA,
+    ]
 
     for schema in schemas:
         logger.info(f"Converting {schema.entity_type} data to DynamoDB items.")

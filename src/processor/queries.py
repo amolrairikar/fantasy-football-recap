@@ -386,4 +386,92 @@ QUERIES = {
     GROUP BY p.season, p.team_id, p.owner_id, t.team_name, t.team_logo, t.display_name, t.final_rank, c.champion_team_id
     ORDER BY season DESC, wins DESC, total_pf DESC;
     """,
+    "DRAFT": {
+        "ESPN": """
+        WITH actual_position_ranks AS (
+            SELECT
+                player_id,
+                season,
+                player_name,
+                position,
+                total_points,
+                RANK() OVER (
+                    PARTITION BY season, position
+                    ORDER BY total_points DESC
+                ) AS actual_position_rank
+            FROM player_scoring_totals
+        ),
+        team_counts AS (
+            SELECT season, COUNT(DISTINCT CAST(teamId AS STRING)) AS num_teams
+            FROM draft_picks
+            GROUP BY season
+        ),
+        replacement_level AS (
+            SELECT
+                apr.season,
+                apr.position,
+                apr.total_points AS replacement_points
+            FROM actual_position_ranks apr
+            INNER JOIN team_counts tc ON apr.season = tc.season
+            WHERE
+                apr.position NOT IN ('K', 'D/ST')
+                AND (
+                    (apr.position IN ('RB', 'WR') AND apr.actual_position_rank = CAST(FLOOR(2.5 * tc.num_teams) AS INTEGER) + 1)
+                    OR
+                    (apr.position NOT IN ('RB', 'WR') AND apr.actual_position_rank = tc.num_teams + 1)
+                )
+        ),
+        draft_with_scoring AS (
+            SELECT
+                dp.*,
+                apr.player_name,
+                apr.position,
+                apr.total_points,
+                apr.actual_position_rank,
+                RANK() OVER (
+                    PARTITION BY dp.season, apr.position
+                    ORDER BY dp.overallPickNumber ASC
+                ) AS drafted_position_rank
+            FROM draft_picks dp
+            LEFT JOIN actual_position_ranks apr
+                ON (dp.playerId = apr.player_id AND dp.season = apr.season)
+        )
+        SELECT
+            CAST(ds.teamId AS STRING) AS team_id,
+            t.display_name AS owner_username,
+            t.team_name,
+            t.team_logo,
+            ds.id AS pick_id,
+            ds.roundId AS round,
+            ds.roundPickNumber AS round_pick_number,
+            ds.overallPickNumber AS overall_pick_number,
+            CAST(ds.playerId AS STRING) AS player_id,
+            ds.player_name,
+            ds.position,
+            ds.total_points,
+            ds.keeper,
+            ds.reservedForKeeper AS reserved_for_keeper,
+            ds.autoDraftTypeId AS auto_draft_type_id,
+            ds.bidAmount AS bid_amount,
+            ds.lineupSlotId AS lineup_slot_id,
+            ds.memberId AS member_id,
+            ds.nominatingTeamId AS nominating_team_id,
+            ds.tradeLocked AS trade_locked,
+            ds.season,
+            ds.drafted_position_rank,
+            ds.actual_position_rank,
+            ds.drafted_position_rank - ds.actual_position_rank AS draft_rank_delta,
+            CASE
+                WHEN ds.position IN ('K', 'D/ST') THEN NULL
+                ELSE ds.total_points - rl.replacement_points
+            END AS vorp
+        FROM draft_with_scoring ds
+        INNER JOIN teams_output t
+            ON (CAST(ds.teamId AS STRING) = t.team_id AND ds.season = t.season)
+        LEFT JOIN replacement_level rl
+            ON (ds.position = rl.position AND ds.season = rl.season)
+        ORDER BY ds.season, ds.overallPickNumber
+        """,
+        "SLEEPER": "",
+    },
 }

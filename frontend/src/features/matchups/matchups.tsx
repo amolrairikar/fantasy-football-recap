@@ -457,18 +457,15 @@ export default function Matchups() {
   return (
     <div className="flex flex-1 flex-col p-6 overflow-auto">
       <div className="max-w-225 mx-auto w-full">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-            Matchups
-          </p>
-          {seasons.length > 0 && (
+        {seasons.length > 0 && (
+          <div className="mb-4">
             <SeasonSelect
               seasons={seasons}
               value={selectedSeason}
               onValueChange={handleSeasonChange}
             />
-          )}
-        </div>
+          </div>
+        )}
 
         <Suspense fallback={<SkeletonMatchupsContent />}>
           <MatchupsContent
