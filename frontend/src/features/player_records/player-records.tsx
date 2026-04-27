@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   getAllMatchups,
   type MatchupItem,
-} from '@/features/scoring_records/api-calls';
+} from '@/features/player_records/api-calls';
 
 interface PositionMeta {
   color: string;
@@ -213,7 +213,7 @@ function PositionCard({
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                     <div
-                      className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[8px] font-medium text-white shrink-0"
+                      className="w-4.5 h-4.5 rounded-full flex items-center justify-center text-[8px] font-medium text-white shrink-0"
                       style={{ background: r.managerColor }}
                     >
                       {r.managerInit}
@@ -228,13 +228,13 @@ function PositionCard({
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden min-w-[40px]">
+                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden min-w-10">
                       <div
                         className="h-full rounded-full"
                         style={{ width: `${barPct}%`, background: meta.color }}
                       />
                     </div>
-                    <span className="text-[13px] font-medium text-foreground min-w-[36px] text-right">
+                    <span className="text-[13px] font-medium text-foreground min-w-9 text-right">
                       {r.pts.toFixed(1)}
                     </span>
                   </div>
@@ -300,7 +300,7 @@ function BoxScoreView({
   );
 }
 
-function SkeletonScoringRecords() {
+function SkeletonPlayerRecords() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
       {Array.from({ length: 6 }).map((_, i) => (
@@ -337,7 +337,7 @@ function SkeletonScoringRecords() {
 
 type Result = { ok: true; data: MatchupItem[] } | { ok: false; error: string };
 
-function ScoringRecordsContent({
+function PlayerRecordsContent({
   promise,
   platform,
 }: {
@@ -497,7 +497,7 @@ function ScoringRecordsContent({
   );
 }
 
-export default function ScoringRecords() {
+export default function PlayerRecords() {
   const leagueId = getCookie('leagueId');
   const platform = (getCookie('leaguePlatform') || 'ESPN') as
     | 'ESPN'
@@ -531,11 +531,11 @@ export default function ScoringRecords() {
                 <Skeleton className="h-3 w-16 ml-2" />
                 <Skeleton className="h-7 w-36 rounded-md" />
               </div>
-              <SkeletonScoringRecords />
+              <SkeletonPlayerRecords />
             </div>
           }
         >
-          <ScoringRecordsContent promise={promise} platform={platform} />
+          <PlayerRecordsContent promise={promise} platform={platform} />
         </Suspense>
       </div>
     </div>
