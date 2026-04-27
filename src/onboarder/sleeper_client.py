@@ -18,6 +18,7 @@ DATA_FETCH_TYPES = [
     "losers_bracket",
     "transactions",
     "drafts",
+    "league_settings",
 ]
 
 
@@ -183,6 +184,8 @@ class SleeperClient:
             return f"{SLEEPER_BASE_URL}/league/{league_id}/transactions/{week}"
         elif data_type == "drafts":
             return f"{SLEEPER_BASE_URL}/league/{league_id}/drafts"
+        elif data_type == "league_settings":
+            return f"{SLEEPER_BASE_URL}/league/{league_id}"
         raise ValueError(
             f"Invalid data_type: {data_type}, or week not provided for matchups or transactions."
         )
