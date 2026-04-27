@@ -454,22 +454,27 @@ export default function SeasonStandings() {
   return (
     <div className="flex flex-1 flex-col p-6 overflow-auto">
       <div className="max-w-225 mx-auto w-full">
-        <Suspense fallback={<SkeletonAwards />}>
-          <AwardsGrid promise={standingsPromise} />
-        </Suspense>
-
-        <div className="flex items-center justify-between mb-2.5">
-          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-            Season standings
-          </p>
-          {seasons.length > 0 && (
+        {seasons.length > 0 && (
+          <div className="mb-4">
             <SeasonSelect
               seasons={seasons}
               value={selectedSeason}
               onValueChange={setSelectedSeason}
             />
-          )}
-        </div>
+          </div>
+        )}
+
+        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground mb-2.5">
+          Season awards
+        </p>
+
+        <Suspense fallback={<SkeletonAwards />}>
+          <AwardsGrid promise={standingsPromise} />
+        </Suspense>
+
+        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground mb-2.5">
+          Season standings
+        </p>
 
         <div className="bg-card border border-border/50 rounded-lg overflow-hidden mb-6">
           <div className="overflow-x-auto">
