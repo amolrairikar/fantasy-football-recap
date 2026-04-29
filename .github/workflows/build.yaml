@@ -38,7 +38,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
 
@@ -82,7 +82,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
 
@@ -95,17 +95,13 @@ jobs:
       - name: Verify AWS identity
         run: aws sts get-caller-identity
 
-      - name: Make Python setup script executable
-        run: chmod +x deployment_scripts/setup_python.sh
-
       - name: Set up Python
-        run: bash deployment_scripts/setup_python.sh "3.13"
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
+        with:
+          python-version: "3.13"
 
       - name: Install pipenv
         run: python3.13 -m pip install pipenv
-
-      - name: Clear pipenv cache
-        run: rm -rf /home/runner/.local/share/virtualenvs/leagueql-app-* || true
 
       - name: Make packaging script executable
         run: chmod +x deployment_scripts/build_lambda_zip.sh
@@ -146,7 +142,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
 
