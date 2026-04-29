@@ -253,6 +253,35 @@ paths:
         uri: "arn:aws:apigateway:${aws_region}:lambda:path/2015-03-31/functions/${lambda_arn}/invocations"
         payloadFormatVersion: "2.0"   # use 2.0 for HTTP API (v2)
 
+  /leagues/migrate/new_users:
+    post:
+      summary: Get users from target league for migration
+      description: >
+        Fetches users from the target league (ESPN or Sleeper) for migration purposes.
+        For ESPN leagues, requires season, s2, and swid credentials. For Sleeper leagues,
+        only the league ID is required.
+      operationId: getMigrateUsers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MigrateUsersRequest"
+      responses:
+        "200":
+          $ref: "#/components/responses/MigrateUsersSuccessResponse"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+      security:
+        - ClerkJWT: []
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST        # always POST for Lambda proxy, regardless of your route method
+        uri: "arn:aws:apigateway:${aws_region}:lambda:path/2015-03-31/functions/${lambda_arn}/invocations"
+        payloadFormatVersion: "2.0"   # use 2.0 for HTTP API (v2)
+
 components:
 
   securitySchemes:
@@ -330,6 +359,35 @@ components:
             ESPN SWID cookie value. Required for private ESPN leagues only.
             This value is only passed to the application for onboarding and is
             never logged or stored in our database.
+          example: "{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}"
+
+    MigrateUsersRequest:
+      type: object
+      required: [leagueId, platform]
+      properties:
+        leagueId:
+          type: string
+          description: The ESPN or Sleeper league ID to fetch users from
+          example: "12345678"
+        platform:
+          type: string
+          enum: [ESPN, SLEEPER]
+          description: The fantasy platform this league belongs to
+          example: "ESPN"
+        season:
+          type: string
+          description: >
+            The season to fetch users from. Required for ESPN leagues only.
+          example: "2025"
+        s2:
+          type: string
+          description: >
+            ESPN espn_s2 cookie value. Required for ESPN leagues only.
+          example: "AEBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        swid:
+          type: string
+          description: >
+            ESPN SWID cookie value. Required for ESPN leagues only.
           example: "{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}"
 
     QueryResponse:
@@ -419,6 +477,34 @@ components:
               message:
                 type: string
                 example: "Onboarding is currently IN_PROGRESS."
+
+    MigrateUsersSuccessResponse:
+      description: Users fetched successfully
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/APIResponse"
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      users:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              description: The user ID from the platform
+                              example: "12345678"
+          example:
+            detail: "Successfully fetched users"
+            data:
+              users:
+                - id: "12345678"
+                - id: "87654321"
 
     # ── Error responses ────────────────────────────────────
 

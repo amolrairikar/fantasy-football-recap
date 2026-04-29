@@ -8,6 +8,7 @@ from typing import Annotated, Any, Optional
 
 import boto3
 import botocore.exceptions
+import requests
 from boto3.dynamodb.conditions import Key
 from fastapi import FastAPI, HTTPException, Path, Response, status, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +42,14 @@ def convert_decimals(obj: Any) -> Any:
 
 
 class OnboardingPayload(BaseModel):
+    leagueId: str
+    platform: str
+    season: Optional[str] = None
+    s2: Optional[str] = None
+    swid: Optional[str] = None
+
+
+class MigrateUsersPayload(BaseModel):
     leagueId: str
     platform: str
     season: Optional[str] = None
@@ -611,6 +620,55 @@ def query_league(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
         )
+
+
+@app.post("/leagues/migrate/new_users", status_code=status.HTTP_200_OK)
+def get_migrate_users(payload: MigrateUsersPayload) -> APIResponse:
+    """Fetches users from the target league for migration purposes."""
+    platform = Platform(payload.platform)
+    users_data = []
+
+    try:
+        if platform == Platform.SLEEPER:
+            url = f"https://api.sleeper.app/v1/league/{payload.leagueId}/users"
+            response = requests.get(url)
+            response.raise_for_status()
+            users = response.json()
+            users_data = [
+                {
+                    "id": user.get("user_id"),
+                    "display_name": user.get("display_name") or user.get("username"),
+                }
+                for user in users
+            ]
+        elif platform == Platform.ESPN:
+            if not payload.season or not payload.s2 or not payload.swid:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="season, s2, and swid are required for ESPN leagues",
+                )
+            url = f"https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{payload.season}/segments/0/leagues/{payload.leagueId}?view=mTeam"
+            cookies = {"SWID": payload.swid, "espn_s2": payload.s2}
+            response = requests.get(url, cookies=cookies)
+            response.raise_for_status()
+            data = response.json()
+            members = data.get("members", [])
+            users_data = [
+                {"id": member.get("id"), "display_name": member.get("displayName")}
+                for member in members
+            ]
+
+        return APIResponse(
+            detail="Successfully fetched users", data={"users": users_data}
+        )
+    except requests.exceptions.RequestException as e:
+        logger.error("Failed to fetch users from %s API: %s", platform.value, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch users from {platform.value}",
+        )
+    except HTTPException:
+        raise
 
 
 handler = Mangum(app)

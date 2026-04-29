@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import LeagueConnect from '@/features/connect_league/league-connect';
+import MigrateLeague from '@/features/migrate_league/migrate-league';
+import MigrateLeagueStep2 from '@/features/migrate_league/migrate-league-step2';
 import { NAV_LINKS } from '@/features/landing_page/constants';
 import LeagueQLLanding from '@/features/landing_page/landing-page';
 import type { NavLinkItem } from '@/features/landing_page/types';
@@ -128,6 +130,28 @@ function App() {
               <Header />
               <div className="pt-1">
                 <LeagueConnect />
+              </div>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/migrate_league"
+          element={
+            <ProtectedRoute>
+              <Header />
+              <div className="pt-1">
+                <MigrateLeague />
+              </div>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/migrate_league_step2"
+          element={
+            <ProtectedRoute>
+              <Header />
+              <div className="pt-1">
+                <MigrateLeagueStep2 />
               </div>
             </ProtectedRoute>
           }
