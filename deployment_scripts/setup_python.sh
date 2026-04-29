@@ -49,8 +49,13 @@ else
     # Install Python and dev packages
     sudo apt-get install -y "$PYTHON_BIN" "$PYTHON_BIN"-dev "$PYTHON_BIN"-venv
     
-    # Install pip using ensurepip (built into Python)
-    sudo "$PYTHON_BIN" -m ensurepip --upgrade --default-pip
+    # Install pip using ensurepip only if not already available
+    if ! "$PYTHON_BIN" -m pip --version &> /dev/null; then
+      echo "Installing pip using ensurepip..."
+      sudo "$PYTHON_BIN" -m ensurepip --default-pip
+    else
+      echo "pip is already available"
+    fi
   else
     echo "Error: Unsupported OS: $OS"
     echo "This script currently only supports Ubuntu"
