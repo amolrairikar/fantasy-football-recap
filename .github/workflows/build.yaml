@@ -50,10 +50,11 @@ jobs:
       - name: Verify AWS identity
         run: aws sts get-caller-identity
 
+      - name: Make Terraform setup script executable
+        run: chmod +x deployment_scripts/setup_terraform.sh
+
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: "1.14.7"
+        run: bash deployment_scripts/setup_terraform.sh "1.14.7"
 
       - name: Initialize & Apply Terraform
         working-directory: infrastructure/global/${{ env.ENVIRONMENT }}
@@ -151,10 +152,11 @@ jobs:
       - name: Verify AWS identity
         run: aws sts get-caller-identity
 
+      - name: Make Terraform setup script executable
+        run: chmod +x deployment_scripts/setup_terraform.sh
+
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: "1.14.7"
+        run: bash deployment_scripts/setup_terraform.sh "1.14.7"
 
       - name: Set Clerk issuer URL
         run: |
