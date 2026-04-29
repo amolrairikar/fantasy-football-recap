@@ -44,7 +44,11 @@ CHANGED_FILES=$(git diff --name-only "$BASE_REF" HEAD 2>/dev/null || true)
 
 if [ -z "$CHANGED_FILES" ]; then
   echo "No changed files detected"
-  echo "any_changed=false" >> $GITHUB_OUTPUT
+  if [ -n "${GITHUB_OUTPUT:-}" ]; then
+    echo "any_changed=false" >> $GITHUB_OUTPUT
+  else
+    echo "any_changed=false"
+  fi
   exit 0
 fi
 
@@ -76,7 +80,11 @@ for PATTERN in $FILE_PATTERNS; do
   fi
 done
 
-echo "any_changed=$ANY_CHANGED" >> $GITHUB_OUTPUT
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+  echo "any_changed=$ANY_CHANGED" >> $GITHUB_OUTPUT
+else
+  echo "any_changed=$ANY_CHANGED"
+fi
 
 if [ "$ANY_CHANGED" == "true" ]; then
   echo "Changes detected in specified paths"

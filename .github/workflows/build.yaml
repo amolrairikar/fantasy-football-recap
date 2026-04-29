@@ -39,6 +39,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Make AWS credentials script executable
         run: chmod +x deployment_scripts/configure_aws_credentials.sh
@@ -81,6 +83,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Make AWS credentials script executable
         run: chmod +x deployment_scripts/configure_aws_credentials.sh
@@ -140,6 +144,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Make AWS credentials script executable
         run: chmod +x deployment_scripts/configure_aws_credentials.sh
