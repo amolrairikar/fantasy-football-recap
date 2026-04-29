@@ -72,7 +72,7 @@ process_lambda() {
     # 1. Install dependencies
     if [[ -f "$SOURCE_DIR/requirements.txt" ]]; then
         echo "    Installing dependencies..."
-        pipenv run pip install \
+        pip install \
             --quiet \
             --requirement "$SOURCE_DIR/requirements.txt" \
             --target "$BUILD_DIR" \
