@@ -52,7 +52,7 @@ else
     # Install pip if not available
     if ! command -v "pip${PYTHON_VERSION}" &> /dev/null; then
       echo "Installing pip for Python ${PYTHON_VERSION}..."
-      curl -fsSL https://bootstrap.pypa.io/get-pip.py | sudo "$PYTHON_BIN"
+      curl -fsSL https://bootstrap.pypa.io/get-pip.py | sudo "$PYTHON_BIN" --ignore-installed
     fi
   else
     echo "Error: Unsupported OS: $OS"
