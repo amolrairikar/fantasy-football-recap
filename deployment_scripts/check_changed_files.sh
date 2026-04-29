@@ -17,11 +17,18 @@ fi
 echo "Checking for changes in: $FILE_PATTERNS"
 
 # Determine the base ref for comparison
-if [ "${{ github.event_name }}" == "pull_request" ]; then
-  BASE_REF="${{ github.event.pull_request.base.sha }}"
+if [ -n "${GITHUB_EVENT_NAME:-}" ]; then
+  # Running in GitHub Actions
+  if [ "$GITHUB_EVENT_NAME" == "pull_request" ]; then
+    BASE_REF="${GITHUB_EVENT_PULL_REQUEST_BASE_SHA}"
+  else
+    # For push events, compare with the previous commit
+    BASE_REF="${GITHUB_EVENT_BEFORE}"
+  fi
 else
-  # For push events, compare with the previous commit
-  BASE_REF="${{ github.event.before }}"
+  # Running locally - compare with HEAD~1
+  echo "Running locally, comparing with HEAD~1"
+  BASE_REF="HEAD~1"
 fi
 
 # If BASE_REF is empty (e.g., first push), set it to a default
