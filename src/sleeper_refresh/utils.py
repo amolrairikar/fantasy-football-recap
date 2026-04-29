@@ -81,7 +81,7 @@ def get_sleeper_leagues() -> list[str]:
 
 def invoke_onboarder_lambda(league_id: str) -> None:
     """
-    Invokes the onboarder lambda to refresh a specific Sleeper league.
+    Invokes the onboarder lambda to refresh a specific Sleeper league asynchronously.
 
     Args:
         league_id: The Sleeper league ID to refresh.
