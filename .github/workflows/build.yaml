@@ -40,12 +40,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Make AWS credentials script executable
+        run: chmod +x deployment_scripts/configure_aws_credentials.sh
+
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-${{ env.ENVIRONMENT }}-role 
-          aws-region: us-east-1
-          role-session-name: GitHubActions-${{ github.run_id }}
+        run: bash deployment_scripts/configure_aws_credentials.sh "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-${{ env.ENVIRONMENT }}-role" "us-east-1" "GitHubActions-${{ github.run_id }}"
 
       - name: Verify AWS identity
         run: aws sts get-caller-identity
@@ -142,12 +141,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Make AWS credentials script executable
+        run: chmod +x deployment_scripts/configure_aws_credentials.sh
+
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-${{ env.ENVIRONMENT }}-role
-          aws-region: ${{ matrix.region }}
-          role-session-name: GitHubActions-${{ github.run_id }}-${{ matrix.region }}
+        run: bash deployment_scripts/configure_aws_credentials.sh "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-${{ env.ENVIRONMENT }}-role" "${{ matrix.region }}" "GitHubActions-${{ github.run_id }}-${{ matrix.region }}"
 
       - name: Verify AWS identity
         run: aws sts get-caller-identity
