@@ -9,7 +9,8 @@ QUERIES = {
             t.season,
             t.owners[1] AS primary_owner_id,
             t.owners[2] AS secondary_owner_id,
-            t.rankCalculatedFinal AS final_rank
+            t.rankCalculatedFinal AS final_rank,
+            t.owners[1] AS canonical_owner_id
         FROM teams t
         INNER JOIN members m
             ON t.primaryOwner = m.id
@@ -52,7 +53,8 @@ QUERIES = {
             u.season,
             u.user_id AS primary_owner_id,
             NULL AS secondary_owner_id,
-            sr.final_rank
+            sr.final_rank,
+            u.user_id AS canonical_owner_id
         FROM users u
         INNER JOIN rosters r
             ON (u.user_id = r.owner_id AND u.league_id = r.league_id)
@@ -70,7 +72,7 @@ QUERIES = {
             CAST(m.team_a_score AS DOUBLE) AS team_a_score,
             m.team_a_starters AS team_a_starters,
             m.team_a_bench AS team_a_bench,
-            t1.primary_owner_id AS team_a_primary_owner_id,
+            t1.canonical_owner_id AS team_a_primary_owner_id,
             t1.secondary_owner_id AS team_a_secondary_owner_id,
             CAST(m.team_b_id AS STRING) AS team_b_id,
             t2.display_name AS team_b_display_name,
@@ -79,7 +81,7 @@ QUERIES = {
             CAST(m.team_b_score AS DOUBLE) AS team_b_score,
             m.team_b_starters AS team_b_starters,
             m.team_b_bench AS team_b_bench,
-            t2.primary_owner_id AS team_b_primary_owner_id,
+            t2.canonical_owner_id AS team_b_primary_owner_id,
             t2.secondary_owner_id AS team_b_secondary_owner_id,
             m.playoff_tier_type AS playoff_tier_type,
             CASE
@@ -122,7 +124,7 @@ QUERIES = {
             m.team_a_points AS team_a_score,
             m.team_a_starters AS team_a_starters,
             m.team_a_bench AS team_a_bench,
-            t1.primary_owner_id AS team_a_primary_owner_id,
+            t1.canonical_owner_id AS team_a_primary_owner_id,
             t1.secondary_owner_id AS team_a_secondary_owner_id,
             CAST(m.team_b_roster_id AS STRING) AS team_b_id,
             t2.display_name AS team_b_display_name,
@@ -131,7 +133,7 @@ QUERIES = {
             m.team_b_points AS team_b_score,
             m.team_b_starters AS team_b_starters,
             m.team_b_bench AS team_b_bench,
-            t2.primary_owner_id AS team_b_primary_owner_id,
+            t2.canonical_owner_id AS team_b_primary_owner_id,
             t2.secondary_owner_id AS team_b_secondary_owner_id,
             m.playoff_tier_type AS playoff_tier_type,
             CASE

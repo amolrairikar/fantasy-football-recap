@@ -17,7 +17,7 @@ import type {
 
 export const NAV_LINKS: NavLinkItem[] = [
   { label: 'GitHub', href: 'https://github.com/amolrairikar/leagueql-app', icon: GitHubIcon },
-  { label: 'Changelog', href: 'https://github.com/amolrairikar/leagueql-app/blob/main/CHANGELOG.md', icon: FileText },
+  { label: 'Changelog', href: 'https://github.com/amolrairikar/leagueql-app/blob/main/docs/CHANGELOG.md', icon: FileText },
   { label: 'Docs', href: '#', icon: Info },
 ];
 
