@@ -5,7 +5,7 @@ import { AVATAR_COLORS } from '@/lib/color-constants';
 export { AVATAR_COLORS };
 
 export function avatarColor(index: number): string {
-  return AVATAR_COLORS[index % AVATAR_COLORS.length] as string;
+  return AVATAR_COLORS[index % AVATAR_COLORS.length];
 }
 
 function initials(username: string): string {

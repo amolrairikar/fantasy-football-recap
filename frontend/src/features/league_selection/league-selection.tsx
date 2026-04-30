@@ -99,9 +99,10 @@ export default function LeagueSelection() {
                   <Label htmlFor="platform">Platform</Label>
                   <Select
                     value={platform.toLowerCase()}
-                    onValueChange={(v) =>
-                      setPlatform(v.toUpperCase() as 'ESPN' | 'SLEEPER')
-                    }
+                    onValueChange={(v) => {
+                      if (v === 'espn') setPlatform('ESPN');
+                      else if (v === 'sleeper') setPlatform('SLEEPER');
+                    }}
                   >
                     <SelectTrigger id="platform" className="w-full">
                       <SelectValue placeholder="Select a platform" />

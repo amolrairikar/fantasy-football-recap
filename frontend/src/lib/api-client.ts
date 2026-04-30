@@ -8,7 +8,9 @@ function getBaseUrl(): string {
   const override = import.meta.env.VITE_API_URL as string | undefined;
   if (override) return override;
   if (import.meta.env.PROD) return 'https://api.leagueql.com';
-  return 'https://p9o8piuh38.execute-api.us-east-1.amazonaws.com';
+  const devUrl = import.meta.env.VITE_DEV_API_URL as string | undefined;
+  if (!devUrl) throw new Error('VITE_DEV_API_URL must be set in development (see .env.local)');
+  return devUrl;
 }
 
 export const API_BASE_URL = getBaseUrl();
@@ -66,7 +68,7 @@ function getSessionToken(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+async function _doFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getSessionToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
@@ -98,6 +100,21 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const data: unknown = await response.json();
   clearApiError();
   return data as T;
+}
+
+// Deduplicates identical in-flight GET requests so simultaneous callers share one fetch.
+const _inflight = new Map<string, Promise<unknown>>();
+
+function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  if (method !== 'GET') return _doFetch<T>(path, init);
+
+  const existing = _inflight.get(path);
+  if (existing) return existing as Promise<T>;
+
+  const promise = _doFetch<T>(path, init).finally(() => _inflight.delete(path));
+  _inflight.set(path, promise);
+  return promise;
 }
 
 // ── Public client ─────────────────────────────────────────────────────────────

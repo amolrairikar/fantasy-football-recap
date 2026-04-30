@@ -32,14 +32,43 @@ import {
   type LeagueConnectFormValues,
   leagueConnectSchema,
 } from '@/features/connect_league/league-connect-schema';
-import { clearEspnCookies, setLeagueCookies } from '@/lib/cookie-handler';
+import { clearEspnCookies, readCookie, setLeagueCookies } from '@/lib/cookie-handler';
 import { ApiError, clearApiError } from '@/lib/api-client';
 
-function getCookieValue(name: string): string {
-  const match = document.cookie
-    .split('; ')
-    .find((row) => row.startsWith(`${name}=`));
-  return match ? decodeURIComponent(match.split('=')[1] ?? '') : '';
+const API_PLATFORM = { espn: 'ESPN', sleeper: 'SLEEPER' } as const;
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+const MAX_ONBOARD_ATTEMPTS = 3;
+const MAX_CONSECUTIVE_ERRORS = 3;
+const ONBOARD_RETRY_DELAY_MS = 2000;
+const POLL_INITIAL_DELAY_MS = 5000;
+const POLL_INTERVAL_MS = 1000;
+const POLL_TIMEOUT_MS = 30000;
+const POLL_ERROR_RESET_DELAY_MS = 10000;
+
+async function pollForCompletion(
+  leagueId: string,
+  platform: 'ESPN' | 'SLEEPER',
+  requestType: 'ONBOARD' | 'REFRESH',
+): Promise<'success' | 'failed'> {
+  const deadline = Date.now() + POLL_TIMEOUT_MS;
+  let consecutiveErrors = 0;
+
+  while (Date.now() < deadline) {
+    await sleep(POLL_INTERVAL_MS);
+    try {
+      const statusData = await getRefreshStatus(leagueId, platform, requestType);
+      const { refresh_status } = statusData.data;
+      consecutiveErrors = 0;
+      if (refresh_status === 'COMPLETED') return 'success';
+      if (refresh_status === 'FAILED') return 'failed';
+    } catch {
+      consecutiveErrors += 1;
+      if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) return 'failed';
+    }
+  }
+  return 'failed';
 }
 
 export default function LeagueConnect() {
@@ -57,16 +86,17 @@ export default function LeagueConnect() {
     resolver: zodResolver(leagueConnectSchema),
     defaultValues: {
       platform: 'espn',
-      swid: getCookieValue('SWID'),
-      espnS2: getCookieValue('espn_s2'),
+      swid: readCookie('SWID'),
+      espnS2: readCookie('espn_s2'),
     },
   });
 
   const platform = useWatch({ control, name: 'platform' });
+  const espnErrors = errors as FieldErrors<EspnFormValues>;
 
   const onSubmit = async (data: LeagueConnectFormValues) => {
     setPollStatus('idle');
-    const apiPlatform = data.platform.toUpperCase() as 'ESPN' | 'SLEEPER';
+    const apiPlatform = API_PLATFORM[data.platform];
 
     let requestType: 'ONBOARD' | 'REFRESH';
 
@@ -90,7 +120,6 @@ export default function LeagueConnect() {
       swid: data.platform === 'espn' ? data.swid : undefined,
     };
 
-    const MAX_ONBOARD_ATTEMPTS = 3;
     let onboardSucceeded = false;
     for (let attempt = 1; attempt <= MAX_ONBOARD_ATTEMPTS; attempt++) {
       try {
@@ -102,67 +131,23 @@ export default function LeagueConnect() {
         const status = err instanceof ApiError ? err.status : 0;
         const isRetryable = status === 0 || status >= 500;
         if (!isRetryable || attempt === MAX_ONBOARD_ATTEMPTS) break;
-        await new Promise<void>((r) => setTimeout(r, 2000));
+        await sleep(ONBOARD_RETRY_DELAY_MS);
       }
     }
     if (!onboardSucceeded) {
       return;
     }
 
-    await new Promise<void>((r) => setTimeout(r, 5000));
-    await new Promise<void>((resolve) => {
-      let done = false;
-      let pollCount = 0;
-      let consecutiveErrors = 0;
-      const MAX_CONSECUTIVE_ERRORS = 3;
-
-      const cleanup = (status: 'success' | 'failed') => {
-        if (done) return;
-        done = true;
-        clearInterval(intervalId);
-        clearTimeout(timeoutId);
-        setPollStatus(status);
-        if (status === 'success') {
-          void (async () => {
-            const leagueData = await getLeague(data.leagueId, apiPlatform);
-            setLeagueCookies(data.leagueId, apiPlatform, leagueData.data.seasons);
-            void navigate('/home');
-          })();
-        } else {
-          setTimeout(() => setPollStatus('idle'), 10000);
-        }
-        resolve();
-      };
-
-      const intervalId = setInterval(() => {
-        void (async () => {
-          pollCount += 1;
-          try {
-            const statusData = await getRefreshStatus(
-              data.leagueId,
-              apiPlatform,
-              requestType,
-            );
-            const { refresh_status } = statusData.data;
-            consecutiveErrors = 0;
-            if (refresh_status === 'COMPLETED') {
-              cleanup('success');
-            } else if (refresh_status === 'FAILED') {
-              cleanup('failed');
-            }
-          } catch {
-            consecutiveErrors += 1;
-            if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-              cleanup('failed');
-            }
-          }
-        })();
-      }, 1000);
-
-      const timeoutId = setTimeout(() => {
-        cleanup('failed');
-      }, 30000);
-    });
+    await sleep(POLL_INITIAL_DELAY_MS);
+    const result = await pollForCompletion(data.leagueId, apiPlatform, requestType);
+    setPollStatus(result);
+    if (result === 'success') {
+      const leagueData = await getLeague(data.leagueId, apiPlatform);
+      setLeagueCookies(data.leagueId, apiPlatform, leagueData.data.seasons);
+      void navigate('/home');
+    } else {
+      setTimeout(() => setPollStatus('idle'), POLL_ERROR_RESET_DELAY_MS);
+    }
   };
 
   return (
@@ -238,10 +223,10 @@ export default function LeagueConnect() {
                       placeholder="Enter the latest season"
                       {...register('latestSeason')}
                     />
-                    {(errors as FieldErrors<EspnFormValues>).latestSeason && (
+                    {espnErrors.latestSeason && (
                       <p className="text-sm text-destructive">
                         {
-                          (errors as FieldErrors<EspnFormValues>).latestSeason
+                          espnErrors.latestSeason
                             ?.message
                         }
                       </p>
@@ -255,9 +240,9 @@ export default function LeagueConnect() {
                       placeholder="Enter your SWID"
                       {...register('swid')}
                     />
-                    {(errors as FieldErrors<EspnFormValues>).swid && (
+                    {espnErrors.swid && (
                       <p className="text-sm text-destructive">
-                        {(errors as FieldErrors<EspnFormValues>).swid?.message}
+                        {espnErrors.swid?.message}
                       </p>
                     )}
                   </div>
@@ -269,10 +254,10 @@ export default function LeagueConnect() {
                       placeholder="Enter your ESPN S2 token"
                       {...register('espnS2')}
                     />
-                    {(errors as FieldErrors<EspnFormValues>).espnS2 && (
+                    {espnErrors.espnS2 && (
                       <p className="text-sm text-destructive">
                         {
-                          (errors as FieldErrors<EspnFormValues>).espnS2
+                          espnErrors.espnS2
                             ?.message
                         }
                       </p>

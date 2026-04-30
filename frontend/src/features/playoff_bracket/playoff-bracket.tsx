@@ -6,6 +6,7 @@ import { BoxScoreCard } from '@/components/box-score-card';
 import SeasonSelect from '@/features/season_select/season-select';
 import { getLeagueCookies } from '@/lib/cookie-handler';
 import { AVATAR_COLORS, UI_COLORS, POSITION_COLORS } from '@/lib/color-constants';
+import { logger } from '@/lib/logger';
 import { getPlayoffBracket, getMatchups, type BracketMatch, type Matchup } from './api-calls';
 
 interface Team {
@@ -257,7 +258,7 @@ export default function PlayoffBracket() {
 
         setMatches(matchesWithScores);
       } catch (err) {
-        console.error('Failed to fetch playoff bracket:', err);
+        logger.error('Failed to fetch playoff bracket', err);
         setError('Failed to load playoff bracket data.');
         setMatches([]);
       } finally {

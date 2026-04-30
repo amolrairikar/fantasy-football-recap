@@ -77,6 +77,48 @@ function StandingsChart({ promise }: { promise: Promise<ManagerStandingsItem[]> 
   const standings = use(promise);
   const [selectedOwnerId, setSelectedOwnerId] = useState<string | null>(null);
 
+  const { owners, colorMap, chartData, chartConfig, maxRank } = useMemo(() => {
+    const ownerStandingsMap = new Map<string, ManagerStandingsItem[]>();
+    for (const row of standings) {
+      if (!ownerStandingsMap.has(row.owner_id)) ownerStandingsMap.set(row.owner_id, []);
+      ownerStandingsMap.get(row.owner_id)!.push(row);
+    }
+
+    const owners = [...ownerStandingsMap.entries()]
+      .map(([ownerId, rows]) => {
+        const mostRecent = [...rows].sort((a, b) => b.season.localeCompare(a.season))[0];
+        return { ownerId, username: mostRecent.owner_username };
+      })
+      .sort((a, b) => a.username.localeCompare(b.username));
+
+    const colorMap = new Map(owners.map((o, i) => [o.ownerId, avatarColor(i)]));
+    const allSeasons = [...new Set(standings.map((s) => s.season))].sort();
+
+    const chartData = allSeasons.map((season) => {
+      const point: Record<string, string | number | null> = { season };
+      for (const { ownerId } of owners) {
+        const ownerRows = ownerStandingsMap.get(ownerId) ?? [];
+        point[ownerId] = ownerRows.find((r) => r.season === season)?.final_rank ?? null;
+      }
+      return point;
+    });
+
+    const chartConfig: ChartConfig = Object.fromEntries(
+      owners.map((o, i) => [o.ownerId, { label: o.username, color: colorMap.get(o.ownerId) ?? avatarColor(i) }]),
+    );
+
+    const validRanks = chartData
+      .flatMap((d) =>
+        Object.entries(d)
+          .filter((entry): entry is [string, number | null] => entry[0] !== 'season')
+          .map(([, value]) => value),
+      )
+      .filter((r): r is number => r !== null);
+    const maxRank = validRanks.length > 0 ? Math.max(...validRanks) : 12;
+
+    return { owners, colorMap, chartData, chartConfig, maxRank };
+  }, [standings]);
+
   if (standings.length === 0) {
     return (
       <div className="bg-card border border-border/50 rounded-lg p-5">
@@ -86,58 +128,6 @@ function StandingsChart({ promise }: { promise: Promise<ManagerStandingsItem[]> 
       </div>
     );
   }
-
-  // Group standings by owner
-  const ownerStandingsMap = new Map<string, ManagerStandingsItem[]>();
-  for (const row of standings) {
-    if (!ownerStandingsMap.has(row.owner_id)) {
-      ownerStandingsMap.set(row.owner_id, []);
-    }
-    ownerStandingsMap.get(row.owner_id)!.push(row);
-  }
-
-  // Get unique owners sorted alphabetically for consistent color assignment
-  const owners = [...ownerStandingsMap.entries()]
-    .map(([ownerId, rows]) => {
-      const mostRecent = [...rows].sort((a, b) =>
-        b.season.localeCompare(a.season),
-      )[0];
-      return { ownerId, username: mostRecent.owner_username };
-    })
-    .sort((a, b) => a.username.localeCompare(b.username));
-
-  const colorMap = new Map(owners.map((o, i) => [o.ownerId, avatarColor(i)]));
-
-  // Get all unique seasons sorted
-  const allSeasons = [...new Set(standings.map((s) => s.season))].sort();
-
-  // Build chart data using final_rank
-  const chartData = allSeasons.map((season) => {
-    const point: Record<string, string | number | null> = { season };
-    for (const { ownerId } of owners) {
-      const ownerRows = ownerStandingsMap.get(ownerId) || [];
-      const seasonRow = ownerRows.find((r) => r.season === season);
-      point[ownerId] = seasonRow?.final_rank ?? null;
-    }
-    return point;
-  });
-
-  // Build chart config
-  const chartConfig: ChartConfig = Object.fromEntries(
-    owners.map((o, i) => [
-      o.ownerId,
-      { label: o.username, color: colorMap.get(o.ownerId) ?? avatarColor(i) },
-    ]),
-  );
-
-  // Calculate max rank for Y-axis domain
-  const allRanks = chartData.flatMap((d) =>
-    Object.entries(d)
-      .filter(([key]) => key !== 'season')
-      .map(([, value]) => value as number | null),
-  );
-  const validRanks = allRanks.filter((r): r is number => r !== null);
-  const maxRank = validRanks.length > 0 ? Math.max(...validRanks) : 12;
 
   return (
     <div className="bg-card border border-border/50 rounded-lg p-5">
@@ -357,9 +347,13 @@ export default function HomePage() {
     (): Promise<ChampionItem[]> =>
       allDataPromise.then(({ standings }) => {
         if (seasons.length === 0) return [];
+        const bySeasonMap = new Map<string, ManagerStandingsItem[]>();
+        for (const row of standings) {
+          if (!bySeasonMap.has(row.season)) bySeasonMap.set(row.season, []);
+          bySeasonMap.get(row.season)!.push(row);
+        }
         return seasons.map((season) => {
-          const seasonStandings = standings.filter((s) => s.season === season);
-          const champion = seasonStandings.find((s) => s.champion === 'Yes');
+          const champion = bySeasonMap.get(season)?.find((s) => s.champion === 'Yes');
           if (champion) {
             return {
               season,
@@ -369,14 +363,7 @@ export default function HomePage() {
               pfGame: champion.avg_pf.toFixed(1),
             };
           }
-          return {
-            season,
-            name: 'TBD',
-            owner: '—',
-            record: '—',
-            pfGame: '—',
-            highlight: true,
-          };
+          return { season, name: 'TBD', owner: '—', record: '—', pfGame: '—', highlight: true };
         });
       }),
     [allDataPromise, seasons],
@@ -386,10 +373,11 @@ export default function HomePage() {
   const totalGamesPromise = useMemo(
     (): Promise<number> =>
       allDataPromise.then(({ matchups }) => {
-        const seasonMatchups = seasons.map((season) =>
-          matchups.filter((m) => m.season === season).length,
-        );
-        return seasonMatchups.reduce((sum, count) => sum + count, 0);
+        const countBySeason = new Map<string, number>();
+        for (const m of matchups) {
+          countBySeason.set(m.season, (countBySeason.get(m.season) ?? 0) + 1);
+        }
+        return seasons.reduce((sum, season) => sum + (countBySeason.get(season) ?? 0), 0);
       }),
     [allDataPromise, seasons],
   );

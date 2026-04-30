@@ -97,7 +97,7 @@ function DraftRecapContent({
         seen.set(p.team_id, { id: p.team_id, username: p.owner_username });
       }
     }
-    return [...seen.values()];
+    return [...seen.values()].sort((a, b) => a.username.localeCompare(b.username));
   }, [allPicks]);
 
   const [selectedManager, setSelectedManager] = useState(managers[0]?.id ?? '');

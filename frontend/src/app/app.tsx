@@ -1,9 +1,9 @@
 import { useUser } from '@clerk/react';
-import { type LucideProps } from 'lucide-react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import { ErrorBoundary } from '@/components/error-boundary';
 import Header from '@/components/header';
+import { NavLink } from '@/components/nav-link';
 import { Spinner } from '@/components/spinner';
 import { isDemoMode } from '@/lib/cookie-handler';
 import { ModeToggle } from '@/components/mode-toggle';
@@ -29,33 +29,6 @@ import HomePage from '@/features/home_page/home-page';
 import PrivacyPage from '@/features/privacy/privacy-page';
 import { AppSidebar } from '@/features/sidebar/app-sidebar';
 import MatchupRecords from '@/features/matchup_records/matchup-records';
-
-function NavLink({
-  href,
-  icon: Icon,
-  label,
-}: {
-  href: string;
-  icon: React.FC<LucideProps>;
-  label: string;
-}) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="
-        flex items-center gap-1.5 px-3 py-1.5 rounded-md
-        text-muted-foreground hover:text-foreground hover:bg-accent
-        font-mono text-xs tracking-wide
-        transition-colors duration-200
-      "
-    >
-      <Icon size={13} className="opacity-70" />
-      <span className="hidden sm:inline">{label}</span>
-    </a>
-  );
-}
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
