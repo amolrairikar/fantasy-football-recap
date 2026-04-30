@@ -73,51 +73,64 @@ function LeagueNameHeader({ promise }: { promise: Promise<string | undefined> })
   );
 }
 
+type ChartDataResult = {
+  owners: { ownerId: string; username: string }[];
+  colorMap: Map<string, string>;
+  chartData: Record<string, string | number | null>[];
+  chartConfig: ChartConfig;
+  maxRank: number;
+};
+
+function buildChartData(standings: ManagerStandingsItem[]): ChartDataResult {
+  const ownerStandingsMap = new Map<string, ManagerStandingsItem[]>();
+  for (const row of standings) {
+    if (!ownerStandingsMap.has(row.owner_id)) ownerStandingsMap.set(row.owner_id, []);
+    ownerStandingsMap.get(row.owner_id)!.push(row);
+  }
+
+  const owners = [...ownerStandingsMap.entries()]
+    .map(([ownerId, rows]) => {
+      const mostRecent = [...rows].sort((a, b) => b.season.localeCompare(a.season))[0];
+      return { ownerId, username: mostRecent.owner_username };
+    })
+    .sort((a, b) => a.username.localeCompare(b.username));
+
+  const colorMap = new Map(owners.map((o, i) => [o.ownerId, avatarColor(i)]));
+  const allSeasons = [...new Set(standings.map((s) => s.season))].sort();
+
+  const chartData = allSeasons.map((season) => {
+    const point: Record<string, string | number | null> = { season };
+    for (const { ownerId } of owners) {
+      const ownerRows = ownerStandingsMap.get(ownerId) ?? [];
+      point[ownerId] = ownerRows.find((r) => r.season === season)?.final_rank ?? null;
+    }
+    return point;
+  });
+
+  const chartConfig: ChartConfig = Object.fromEntries(
+    owners.map((o, i) => [o.ownerId, { label: o.username, color: colorMap.get(o.ownerId) ?? avatarColor(i) }]),
+  );
+
+  const validRanks = chartData
+    .flatMap((d) =>
+      Object.entries(d)
+        .filter((entry): entry is [string, number | null] => entry[0] !== 'season')
+        .map(([, value]) => value),
+    )
+    .filter((r): r is number => r !== null);
+  const maxRank = validRanks.length > 0 ? Math.max(...validRanks) : 12;
+
+  return { owners, colorMap, chartData, chartConfig, maxRank };
+}
+
 function StandingsChart({ promise }: { promise: Promise<ManagerStandingsItem[]> }) {
   const standings = use(promise);
   const [selectedOwnerId, setSelectedOwnerId] = useState<string | null>(null);
 
-  const { owners, colorMap, chartData, chartConfig, maxRank } = useMemo(() => {
-    const ownerStandingsMap = new Map<string, ManagerStandingsItem[]>();
-    for (const row of standings) {
-      if (!ownerStandingsMap.has(row.owner_id)) ownerStandingsMap.set(row.owner_id, []);
-      ownerStandingsMap.get(row.owner_id)!.push(row);
-    }
-
-    const owners = [...ownerStandingsMap.entries()]
-      .map(([ownerId, rows]) => {
-        const mostRecent = [...rows].sort((a, b) => b.season.localeCompare(a.season))[0];
-        return { ownerId, username: mostRecent.owner_username };
-      })
-      .sort((a, b) => a.username.localeCompare(b.username));
-
-    const colorMap = new Map(owners.map((o, i) => [o.ownerId, avatarColor(i)]));
-    const allSeasons = [...new Set(standings.map((s) => s.season))].sort();
-
-    const chartData = allSeasons.map((season) => {
-      const point: Record<string, string | number | null> = { season };
-      for (const { ownerId } of owners) {
-        const ownerRows = ownerStandingsMap.get(ownerId) ?? [];
-        point[ownerId] = ownerRows.find((r) => r.season === season)?.final_rank ?? null;
-      }
-      return point;
-    });
-
-    const chartConfig: ChartConfig = Object.fromEntries(
-      owners.map((o, i) => [o.ownerId, { label: o.username, color: colorMap.get(o.ownerId) ?? avatarColor(i) }]),
-    );
-
-    const validRanks = chartData
-      .flatMap((d) =>
-        Object.entries(d)
-          .filter((entry): entry is [string, number | null] => entry[0] !== 'season')
-          .map(([, value]) => value),
-      )
-      .filter((r): r is number => r !== null);
-    const maxRank = validRanks.length > 0 ? Math.max(...validRanks) : 12;
-
-    return { owners, colorMap, chartData, chartConfig, maxRank };
-  }, [standings]);
+  const { owners, colorMap, chartData, chartConfig, maxRank } = useMemo(
+    () => buildChartData(standings),
+    [standings],
+  );
 
   if (standings.length === 0) {
     return (
@@ -337,6 +350,7 @@ export default function HomePage() {
     (): Promise<{ standings: ManagerStandingsItem[]; matchups: MatchupItem[] }> =>
       leagueId && seasons.length > 0
         ? getManagerHistoryData(leagueId, platform, seasons)
+            // Intentional empty-state fallback — apiClient surfaces the error to the global store before throwing
             .catch(() => ({ standings: [], matchups: [] }))
         : Promise.resolve({ standings: [], matchups: [] }),
     [leagueId, platform, seasons],

@@ -12,7 +12,7 @@ export function readCookie(name: string): string {
   const match = document.cookie
     .split('; ')
     .find((row) => row.startsWith(`${name}=`));
-  return match ? decodeURIComponent(match.split('=')[1] ?? '') : '';
+  return match ? decodeURIComponent(match.slice(match.indexOf('=') + 1)) : '';
 }
 
 const COOKIE_FLAGS = `; path=/; SameSite=Strict${import.meta.env.PROD ? '; Secure' : ''}`;

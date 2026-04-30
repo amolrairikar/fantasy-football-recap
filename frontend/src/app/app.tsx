@@ -69,28 +69,30 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const APP_LAYOUT_ROUTES: { path: string; element: React.ReactNode }[] = [
+  { path: '/home', element: <HomePage /> },
+  { path: '/standings', element: <SeasonStandings /> },
+  { path: '/matchups', element: <Matchups /> },
+  { path: '/manager_comparison', element: <ManagerComparison /> },
+  { path: '/playoff_bracket', element: <PlayoffBracket /> },
+  { path: '/manager_history', element: <ManagerHistory /> },
+  { path: '/player_records', element: <PlayerRecords /> },
+  { path: '/matchup_records', element: <MatchupRecords /> },
+  { path: '/draft_recap', element: <DraftRecap /> },
+];
+
 function App() {
   return (
     <ErrorBoundary>
     <BrowserRouter>
       <Routes>
-        <Route
-          path="/"
-          element={
-            <>
-              <Header />
-              <LeagueQLLanding />
-            </>
-          }
-        />
+        <Route path="/" element={<><Header /><LeagueQLLanding /></>} />
         <Route
           path="/league"
           element={
             <ProtectedRoute>
               <Header />
-              <div className="pt-1">
-                <LeagueSelection />
-              </div>
+              <div className="pt-1"><LeagueSelection /></div>
             </ProtectedRoute>
           }
         />
@@ -99,111 +101,22 @@ function App() {
           element={
             <ProtectedRoute>
               <Header />
-              <div className="pt-1">
-                <LeagueConnect />
-              </div>
+              <div className="pt-1"><LeagueConnect /></div>
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/home"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <HomePage />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/standings"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <SeasonStandings />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/matchups"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <Matchups />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manager_comparison"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <ManagerComparison />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/playoff_bracket"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <PlayoffBracket />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manager_history"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <ManagerHistory />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/player_records"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <PlayerRecords />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/matchup_records"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <MatchupRecords />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/draft_recap"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <DraftRecap />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/privacy"
-          element={
-            <>
-              <Header />
-              <PrivacyPage />
-            </>
-          }
-        />
+        {APP_LAYOUT_ROUTES.map(({ path, element }) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <ProtectedRoute>
+                <AppLayout>{element}</AppLayout>
+              </ProtectedRoute>
+            }
+          />
+        ))}
+        <Route path="/privacy" element={<><Header /><PrivacyPage /></>} />
       </Routes>
     </BrowserRouter>
     </ErrorBoundary>

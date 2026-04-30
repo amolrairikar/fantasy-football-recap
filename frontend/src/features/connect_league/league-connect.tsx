@@ -112,6 +112,8 @@ export default function LeagueConnect() {
       }
     }
 
+    // ESPN S2/SWID are read from cookies, transmitted once over HTTPS, then cleared by
+    // clearEspnCookies() on success. Never persist or log these credentials.
     const body: OnboardRequest = {
       leagueId: data.leagueId,
       platform: apiPlatform,

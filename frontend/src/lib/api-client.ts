@@ -102,17 +102,32 @@ async function _doFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-// Deduplicates identical in-flight GET requests so simultaneous callers share one fetch.
+// GET deduplication: in-flight requests are shared; settled responses are cached for CACHE_TTL_MS.
+const CACHE_TTL_MS = 30_000;
 const _inflight = new Map<string, Promise<unknown>>();
+const _cache = new Map<string, { data: unknown; expires: number }>();
 
 function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? 'GET').toUpperCase();
   if (method !== 'GET') return _doFetch<T>(path, init);
 
+  const cached = _cache.get(path);
+  if (cached && Date.now() < cached.expires) return Promise.resolve(cached.data as T);
+
   const existing = _inflight.get(path);
   if (existing) return existing as Promise<T>;
 
-  const promise = _doFetch<T>(path, init).finally(() => _inflight.delete(path));
+  const promise = _doFetch<T>(path, init).then(
+    (data) => {
+      _cache.set(path, { data, expires: Date.now() + CACHE_TTL_MS });
+      _inflight.delete(path);
+      return data;
+    },
+    (err: unknown) => {
+      _inflight.delete(path);
+      throw err;
+    },
+  );
   _inflight.set(path, promise);
   return promise;
 }
