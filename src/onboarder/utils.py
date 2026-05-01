@@ -1,7 +1,10 @@
+import asyncio
 import json
 import logging
 import time
 from typing import Any, Sequence
+
+import aiohttp
 
 V2_CUTOFF = 2018
 EXTENDED_SEASON_CUTOFF = 2021
@@ -46,6 +49,60 @@ def setup_logger() -> logging.Logger:
 
 
 logger = setup_logger()
+
+
+async def fetch_with_retry(
+    session: aiohttp.ClientSession,
+    url: str,
+    headers: dict[str, str] | None = None,
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+) -> Any:
+    """
+    Fetch a URL with exponential backoff retry on transient failures.
+
+    Retries on connection errors, timeouts, and retryable HTTP status codes
+    (429, 500, 502, 503, 504). Raises immediately on permanent client errors (4xx).
+
+    Args:
+        session: aiohttp client session to use for the request.
+        url: The URL to fetch.
+        headers: Optional HTTP headers to include in the request.
+        max_retries: Maximum number of retry attempts after the initial try.
+        base_delay: Base delay in seconds for exponential backoff.
+
+    Returns:
+        Parsed JSON response body.
+    """
+    retryable_statuses = {429, 500, 502, 503, 504}
+    for attempt in range(max_retries + 1):
+        try:
+            async with session.get(url=url, headers=headers or {}) as response:
+                if response.status in retryable_statuses:
+                    if attempt < max_retries:
+                        logger.warning(
+                            "Retryable status %s for url: %s (attempt %s/%s)",
+                            response.status,
+                            url,
+                            attempt + 1,
+                            max_retries,
+                        )
+                        await asyncio.sleep(base_delay * (2**attempt))
+                        continue
+                response.raise_for_status()
+                return await response.json()
+        except (aiohttp.ClientConnectionError, asyncio.TimeoutError) as e:
+            if attempt == max_retries:
+                raise
+            logger.warning(
+                "Transient error for url: %s (attempt %s/%s): %s",
+                url,
+                attempt + 1,
+                max_retries,
+                e,
+            )
+            await asyncio.sleep(base_delay * (2**attempt))
+    raise RuntimeError(f"Exhausted retries for {url}")
 
 
 def validate_api_results(

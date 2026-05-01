@@ -7,7 +7,7 @@ import boto3
 import botocore.exceptions
 import requests
 
-from utils import EXTENDED_SEASON_CUTOFF, logger, validate_api_results
+from utils import EXTENDED_SEASON_CUTOFF, fetch_with_retry, logger, validate_api_results
 
 SLEEPER_BASE_URL = "https://api.sleeper.app/v1"
 MAX_CHAIN_DEPTH = 50
@@ -311,10 +311,8 @@ class SleeperClient:
         season, data_type, url = url_data
         async with semaphore:
             try:
-                async with session.get(url=url) as response:
-                    response.raise_for_status()
-                    data = await response.json()
-                    return {"season": season, "data_type": data_type, "data": data}
+                data = await fetch_with_retry(session=session, url=url)
+                return {"season": season, "data_type": data_type, "data": data}
             except Exception as e:
                 logger.error("Failed request for url: %s, error: %s", url, e)
                 return {"season": season, "data_type": data_type, "data": None}

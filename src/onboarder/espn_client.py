@@ -6,7 +6,13 @@ import aiohttp
 import requests
 from yarl import URL
 
-from utils import EXTENDED_SEASON_CUTOFF, V2_CUTOFF, logger, validate_api_results
+from utils import (
+    EXTENDED_SEASON_CUTOFF,
+    V2_CUTOFF,
+    fetch_with_retry,
+    logger,
+    validate_api_results,
+)
 
 DATA_FETCH_TYPES = [
     "users",
@@ -281,13 +287,10 @@ class ESPNClient:
             headers["X-Fantasy-Filter"] = json.dumps(filter_val)
         async with semaphore:
             try:
-                async with session.get(url=url, headers=headers) as response:
-                    response.raise_for_status()
-                    data = await response.json()
-                    if isinstance(data, list):
-                        data = data[0]
-
-                    return {"season": season, "data_type": data_type, "data": data}
+                data = await fetch_with_retry(session=session, url=url, headers=headers)
+                if isinstance(data, list):
+                    data = data[0]
+                return {"season": season, "data_type": data_type, "data": data}
             except Exception as e:
                 logger.error("Failed request for url: %s, error: %s", url, e)
                 return {"season": season, "data_type": data_type, "data": None}

@@ -186,7 +186,9 @@ def compile_sleeper_bench_stats(
     return [
         {
             "player_id": player_id,
-            "full_name": player_metadata.get(player_id, {}).get("full_name"),
+            "full_name": (player_metadata.get(player_id, {}).get("first_name") or "")
+            + " "
+            + (player_metadata.get(player_id, {}).get("last_name") or ""),
             "points_scored": players_points.get(player_id, 0.0),
             "position": player_metadata.get(player_id, {}).get("position"),
         }
