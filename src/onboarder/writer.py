@@ -4,12 +4,14 @@ import os
 from typing import Any
 
 import boto3
+import botocore.config
 import botocore.exceptions
 
 from utils import logger
 
-_s3 = boto3.client("s3")
-_dynamodb = boto3.client("dynamodb")
+_retry_config = botocore.config.Config(retries={"mode": "standard"})
+_s3 = boto3.client("s3", config=_retry_config)
+_dynamodb = boto3.client("dynamodb", config=_retry_config)
 
 
 def upload_results_to_s3(

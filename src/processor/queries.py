@@ -294,7 +294,7 @@ QUERIES = {
     FROM cumulative_stats c
     INNER JOIN teams_output t
         ON (c.team_id = t.team_id AND c.season = t.season)
-    ORDER BY season DESC, CAST(snapshot_week AS INTEGER) DESC, wins DESC;
+    ORDER BY season DESC, CAST(snapshot_week AS INTEGER) DESC, wins DESC
     """,
     "STANDINGS": """
     WITH weekly_stats AS (
@@ -384,7 +384,7 @@ QUERIES = {
     LEFT JOIN champion c
         ON (p.team_id = c.champion_team_id AND p.season = c.season)
     GROUP BY p.season, p.team_id, p.owner_id, t.team_name, t.team_logo, t.display_name, t.final_rank, c.champion_team_id
-    ORDER BY season DESC, wins DESC, total_pf DESC;
+    ORDER BY season DESC, wins DESC, total_pf DESC
     """,
     "DRAFT": {
         "ESPN": """
