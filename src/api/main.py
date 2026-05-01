@@ -7,12 +7,13 @@ from enum import Enum
 from typing import Annotated, Any, Optional
 
 import boto3
+import botocore.config
 import botocore.exceptions
 from boto3.dynamodb.conditions import Key
 from fastapi import FastAPI, HTTPException, Path, Response, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 ORIGINS = [
     "http://localhost:5173",  # LOCAL/DEV
@@ -41,44 +42,35 @@ def convert_decimals(obj: Any) -> Any:
 
 
 class OnboardingPayload(BaseModel):
-    leagueId: str
-    platform: str
-    season: Optional[str] = None
-    s2: Optional[str] = None
-    swid: Optional[str] = None
+    leagueId: str = Field(max_length=100)
+    platform: str = Field(max_length=100)
+    season: Optional[str] = Field(default=None, max_length=100)
+    s2: Optional[str] = Field(default=None, max_length=100)
+    swid: Optional[str] = Field(default=None, max_length=100)
 
 
-class Platform(str, Enum):
+class CaseInsensitiveEnum(str, Enum):
+    @classmethod
+    def _missing_(cls, value: object):
+        if isinstance(value, str):
+            normalized_value = value.upper()
+            for member in cls:
+                if member.value == normalized_value:
+                    return member
+        return None
+
+
+class Platform(CaseInsensitiveEnum):
     SLEEPER = "SLEEPER"
     ESPN = "ESPN"
 
-    @classmethod
-    def _missing_(cls, value: object):
-        """Standard-compliant override for case-insensitive lookup."""
-        if isinstance(value, str):
-            normalized_value = value.upper()
-            for member in cls:
-                if member.value == normalized_value:
-                    return member
-        return None
 
-
-class RequestType(str, Enum):
+class RequestType(CaseInsensitiveEnum):
     ONBOARD = "ONBOARD"
     REFRESH = "REFRESH"
 
-    @classmethod
-    def _missing_(cls, value: object):
-        """Standard-compliant override for case-insensitive lookup."""
-        if isinstance(value, str):
-            normalized_value = value.upper()
-            for member in cls:
-                if member.value == normalized_value:
-                    return member
-        return None
 
-
-class QueryType(str, Enum):
+class QueryType(CaseInsensitiveEnum):
     TEAMS = "TEAMS"
     MATCHUPS = "MATCHUPS"
     SEASON_STANDINGS = "SEASON_STANDINGS"
@@ -144,18 +136,19 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
-# TODO: look into adding a custom config for retries for resource
-dynamodb_resource = boto3.resource("dynamodb")
-table = dynamodb_resource.Table(os.environ["DYNAMODB_TABLE_NAME"])
-dynamodb_client = boto3.client("dynamodb")
+DYNAMODB_TABLE_NAME = os.environ["DYNAMODB_TABLE_NAME"]
 
-lambda_client = boto3.client("lambda")
+_retry_config = botocore.config.Config(retries={"mode": "standard"})
+dynamodb_resource = boto3.resource("dynamodb", config=_retry_config)
+table = dynamodb_resource.Table(DYNAMODB_TABLE_NAME)
 
-s3_client = boto3.client("s3")
+lambda_client = boto3.client("lambda", config=_retry_config)
+
+s3_client = boto3.client("s3", config=_retry_config)
 S3_BUCKET = os.environ["S3_BUCKET_NAME"]
 
 
@@ -197,7 +190,7 @@ def lookup_league(league_id: str, platform: Platform) -> str:
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"canonical_league_id not created for league {league_id} on {platform.value} platform",
+            detail="Internal server error",
         )
 
     return item["canonical_league_id"]
@@ -278,44 +271,41 @@ def get_league_seasons(canonical_league_id: str) -> list[str]:
     return sorted(seasons)
 
 
-def delete_prefixed_items(table_name: str, pk_value: str, sk_prefix: str) -> None:
+def delete_prefixed_items(pk_value: str, sk_prefix: str) -> None:
     """
     Queries and deletes all items sharing a PK and a specific SK prefix.
 
     Args:
-        table_name: The name of the DynamoDB table.
         pk_value: The value of the PK to match.
         sk_prefix: The prefix of the SK to match for deletion.
     """
     query_kwargs: dict = {
-        "TableName": table_name,
-        "KeyConditionExpression": "PK = :pk AND begins_with(SK, :prefix)",
-        "ExpressionAttributeValues": {
-            ":pk": {"S": pk_value},
-            ":prefix": {"S": sk_prefix},
-        },
+        "KeyConditionExpression": Key("PK").eq(pk_value)
+        & Key("SK").begins_with(sk_prefix),
         "ProjectionExpression": "PK, SK",
     }
     total_deleted = 0
-    while True:
-        response = dynamodb_client.query(**query_kwargs)
-        items = response.get("Items", [])
-        for i in range(0, len(items), 25):
-            batch = items[i : i + 25]
-            unprocessed = [{"DeleteRequest": {"Key": item}} for item in batch]
-            while unprocessed:
-                batch_response = dynamodb_client.batch_write_item(
-                    RequestItems={table_name: unprocessed}
-                )
-                unprocessed = batch_response.get("UnprocessedItems", {}).get(
-                    table_name, []
-                )
-        total_deleted += len(items)
-        last_key = response.get("LastEvaluatedKey")
-        if not last_key:
-            break
-        query_kwargs["ExclusiveStartKey"] = last_key
-    logger.info(f"Deleted {total_deleted} items with prefix {sk_prefix}")
+    try:
+        with table.batch_writer() as writer:
+            while True:
+                response = table.query(**query_kwargs)
+                items = response.get("Items", [])
+                for item in items:
+                    writer.delete_item(Key={"PK": item["PK"], "SK": item["SK"]})
+                total_deleted += len(items)
+                last_key = response.get("LastEvaluatedKey")
+                if not last_key:
+                    break
+                query_kwargs["ExclusiveStartKey"] = last_key
+    except botocore.exceptions.ClientError as e:
+        logger.error(
+            "Boto error occurred while deleting items with prefix %s: %s", sk_prefix, e
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        )
+    logger.info("Deleted %d items with prefix %s", total_deleted, sk_prefix)
 
 
 @app.get("/", status_code=status.HTTP_200_OK)
@@ -330,6 +320,7 @@ def get_league(
         str, Path(description="The ID of the fantasy league", pattern=r"^\d+$")
     ],
     platform: Annotated[Platform, Query(description="The platform the league is on")],
+    response: Response,
 ) -> APIResponse:
     """Gets league by league ID and platform."""
     canonical_league_id = lookup_league(league_id=leagueId, platform=platform)
@@ -341,6 +332,7 @@ def get_league(
     )
     seasons = get_league_seasons(canonical_league_id=canonical_league_id)
     metadata = get_league_metadata(canonical_league_id=canonical_league_id)
+    response.headers["Cache-Control"] = "no-store"
     return APIResponse(
         detail="Found league",
         data={
@@ -363,15 +355,17 @@ def get_refresh_status(
             description="The type of refresh ('ONBOARD' or 'REFRESH') to check the status of"
         ),
     ],
+    response: Response,
 ) -> APIResponse:
     """Gets the refresh status for a given league."""
     canonical_league_id = lookup_league(league_id=leagueId, platform=platform)
     league_metadata = get_league_metadata(canonical_league_id=canonical_league_id)
     if refreshOperation == RequestType.ONBOARD:
         refresh_status = league_metadata.get("onboarding_status", "FAILED")
-    elif refreshOperation == RequestType.REFRESH:
+    else:
         refresh_status = league_metadata.get("refresh_status", "FAILED")
 
+    response.headers["Cache-Control"] = "no-store"
     return APIResponse(
         detail="Found refresh status",
         data={
@@ -431,7 +425,7 @@ def onboard_league(
     log_msg = (
         "Refreshing existing league" if canonical_league_id else "New league detected"
     )
-    logger.info(f"{log_msg}, proceeding with Lambda trigger...")
+    logger.info("%s, proceeding with Lambda trigger...", log_msg)
 
     try:
         lambda_client.invoke(
@@ -474,14 +468,9 @@ def delete_league(
         "Proceeding with delete for canonical_league_id: %s", canonical_league_id
     )
     try:
-        table_name = os.environ["DYNAMODB_TABLE_NAME"]
         league_pk = f"LEAGUE#{canonical_league_id}"
-        dynamodb_client.delete_item(
-            TableName=table_name,
-            Key={
-                "PK": {"S": f"LEAGUE#{canonical_league_id}"},
-                "SK": {"S": "METADATA"},
-            },
+        table.delete_item(
+            Key={"PK": league_pk, "SK": "METADATA"},
         )
 
         lookup_kwargs: dict = {
@@ -510,9 +499,7 @@ def delete_league(
             "DRAFT#",
         ]
         for prefix in prefixes_to_clear:
-            delete_prefixed_items(
-                table_name=table_name, pk_value=league_pk, sk_prefix=prefix
-            )
+            delete_prefixed_items(pk_value=league_pk, sk_prefix=prefix)
 
         # After DB delete, delete raw API data files from S3
         s3_prefix = f"raw-api-data/{canonical_league_id}/"
