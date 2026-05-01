@@ -1,7 +1,6 @@
+import asyncio
 import os
 import uuid
-
-import asyncio
 
 from espn_client import ESPNClient
 from sleeper_client import SleeperClient
@@ -67,10 +66,7 @@ class OnboardingService:
         raw_data = asyncio.run(self.client.fetch_all())
         logger.info("Completed data fetch")
         logger.info("Updating job onboarding status in DynamoDB")
-        if isinstance(self.client, ESPNClient):
-            seasons = self.client.seasons
-        else:
-            seasons = list(self.client.season_mapping.keys())
+        seasons = self.client.get_seasons()
         write_onboarding_status_to_dynamodb(
             league_id=self.league_id,
             platform=self.platform,

@@ -1,12 +1,12 @@
+import asyncio
 import json
-from typing import Any, Sequence, Union
+from typing import Any, Sequence
 
 import aiohttp
-import asyncio
 import requests
 from yarl import URL
 
-from utils import logger
+from utils import EXTENDED_SEASON_CUTOFF, V2_CUTOFF, logger, validate_api_results
 
 DATA_FETCH_TYPES = [
     "users",
@@ -15,7 +15,69 @@ DATA_FETCH_TYPES = [
     "matchups",
     "player_scoring_totals",
 ]
-V2_CUTOFF = 2018
+ESPN_PLAYER_FETCH_LIMIT = 1500
+
+
+def _filter_users(
+    data: dict[str, Any], _season: str, _data_type: str
+) -> dict[str, Any]:
+    return {"members": data["members"], "teams": data["teams"]}
+
+
+def _filter_settings(
+    data: dict[str, Any], _season: str, _data_type: str
+) -> dict[str, Any]:
+    return {"settings": data["settings"]}
+
+
+def _filter_draft_picks(
+    data: dict[str, Any], _season: str, _data_type: str
+) -> dict[str, Any]:
+    return {"draft_picks": data["draftDetail"]["picks"]}
+
+
+def _filter_matchups(
+    data: dict[str, Any], season: str, data_type: str
+) -> dict[str, Any]:
+    matchup_week = data_type.removeprefix("matchups_week")
+    return {
+        "matchups": [
+            matchup
+            for matchup in data["schedule"]
+            if str(matchup["matchupPeriodId"]) == str(matchup_week)
+        ]
+    }
+
+
+def _filter_player_scoring_totals(
+    data: dict[str, Any], season: str, data_type: str
+) -> dict[str, Any]:
+    processed = []
+    for player_total in data["players"]:
+        if int(season) <= V2_CUTOFF:
+            stats = player_total.get("player", {}).get("stats", [])
+            total_points = stats[0].get("appliedTotal") if stats else None
+        else:
+            total_points = (
+                player_total.get("ratings", {}).get("0", {}).get("totalRating")
+            )
+        processed.append(
+            {
+                "player_id": player_total.get("player", {}).get("id"),
+                "player_name": player_total.get("player", {}).get("fullName"),
+                "position": player_total.get("player", {}).get("defaultPositionId"),
+                "total_points": total_points,
+            }
+        )
+    return {"player_scoring_totals": processed}
+
+
+_ESPN_DATA_FILTERS = {
+    "users": _filter_users,
+    "settings": _filter_settings,
+    "draft_picks": _filter_draft_picks,
+    "player_scoring_totals": _filter_player_scoring_totals,
+}
 
 
 class ESPNClient:
@@ -37,7 +99,6 @@ class ESPNClient:
         _construct_request_url(base_url, data_type, week): Creates full ESPN Fantasy Football API request URL based on the type of data to fetch.
         _build_all_request_urls(): Constructs all ESPN Fantasy Football API request URLs needed to fetch data for app.
         _make_cookies_dict(): Builds the raw cookies dict from s2 and SWID values.
-        _build_cookies(): Creates cookies object for espn_s2 and SWID cookies if needed.
         fetch_all(): Fetch all URLs at once asynchronously with a limit of 10 active calls.
         _fetch(session, semaphore, url_data): Fetch a single URL asynchronously.
     """
@@ -65,6 +126,10 @@ class ESPNClient:
             self.seasons = self._get_league_seasons(latest_season=latest_season)
         self.request_urls = self._build_all_request_urls()
 
+    def get_seasons(self) -> list[str]:
+        """Returns the list of seasons this league has been active."""
+        return self.seasons
+
     def _get_league_seasons(self, latest_season: str) -> list[str]:
         """
         Gets list of all the seasons league has been active for prior to onboarding.
@@ -80,7 +145,7 @@ class ESPNClient:
             f"/seasons/{latest_season}/segments/0/leagues/{self.league_id}?view=mTeam"
         )
         cookies = self._make_cookies_dict()
-        response = requests.get(url=url, cookies=cookies)
+        response = requests.get(url=url, cookies=cookies, timeout=(5, 30))
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
@@ -129,13 +194,18 @@ class ESPNClient:
         """
         urls = []
         for season in self.seasons:
+            season_int = int(season)
             for data_type in DATA_FETCH_TYPES:
-                if int(season) <= V2_CUTOFF:
+                if season_int <= V2_CUTOFF:
                     api_base_url = f"https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/leagueHistory/{self.league_id}?seasonId={season}"
                 else:
                     api_base_url = f"https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{season}/segments/0/leagues/{self.league_id}"
                 if data_type == "matchups":
-                    weeks = range(1, 19, 1) if int(season) >= 2021 else range(1, 18, 1)
+                    weeks = (
+                        range(1, 19)
+                        if season_int >= EXTENDED_SEASON_CUTOFF
+                        else range(1, 18)
+                    )
                     for week in weeks:
                         full_url = self._construct_request_url(
                             base_url=api_base_url, data_type=data_type, week=week
@@ -157,17 +227,6 @@ class ESPNClient:
             cookies["SWID"] = self.swid
         return cookies
 
-    def _build_cookies(self) -> dict[str, str] | None:
-        """
-        Creates cookies object for espn_s2 and SWID cookies if needed.
-
-        Returns:
-            The cookies object for private leagues, else None.
-        """
-        # Cookies are only required to fetch private ESPN league data
-        cookies = self._make_cookies_dict()
-        return cookies if cookies else None
-
     async def fetch_all(self) -> list[dict[str, Any]]:
         """
         Fetch all URLs at once asynchronously with a limit of 10 active calls.
@@ -175,8 +234,10 @@ class ESPNClient:
         Returns:
             All API request responses.
         """
-        cookies = self._build_cookies()
-        async with aiohttp.ClientSession(cookies=cookies) as session:
+        cookies = self._make_cookies_dict() or None
+        async with aiohttp.ClientSession(
+            cookies=cookies, timeout=aiohttp.ClientTimeout(total=30)
+        ) as session:
             semaphore = asyncio.Semaphore(10)
             tasks = [
                 self._fetch(session=session, semaphore=semaphore, url_data=url_data)
@@ -209,7 +270,7 @@ class ESPNClient:
         if data_type == "player_scoring_totals":
             filter_val = {
                 "players": {
-                    "limit": 1500,
+                    "limit": ESPN_PLAYER_FETCH_LIMIT,
                     "sortAppliedStatTotal": {
                         "sortAsc": False,
                         "sortPriority": 2,
@@ -233,88 +294,36 @@ class ESPNClient:
 
     def _process_api_results(
         self,
-        results: Sequence[Union[dict[str, Any], BaseException]],
+        results: Sequence[dict[str, Any] | BaseException],
     ) -> list[dict[str, Any]]:
         """
-        Validates API responses and raises on any failure.
+        Validates API responses, filters ESPN-specific fields, and raises on any failure.
 
         Args:
             results: Unprocessed API responses.
 
         Returns:
-            Validated API responses with no None data values.
+            Validated and filtered API responses.
         """
         processed_results = []
-        for result in results:
-            if isinstance(result, BaseException):
-                logger.error("Unhandled exception in gather: %s", result)
-                raise RuntimeError(
-                    f"Unexpected error occurred while fetching data: {result}"
-                )
-
+        for result in validate_api_results(results):
             season: str = result["season"]
             data_type: str = result["data_type"]
             data = result["data"]
 
-            if data is None:
-                raise RuntimeError(
-                    f"Failed to get data for season {season} and data type {data_type}"
-                )
-
-            # Filter ESPN responses due to large raw response size
-            if data_type == "users":
-                processed_data = {
-                    "members": data["members"],
-                    "teams": data["teams"],
-                }
-            elif data_type == "settings":
-                processed_data = {
-                    "settings": data["settings"],
-                }
-            elif data_type == "draft_picks":
-                processed_data = {"draft_picks": data["draftDetail"]["picks"]}
-            elif data_type.startswith("matchups"):
-                matchup_week = data_type.removeprefix("matchups_week")
-                matchups = data["schedule"]
-                processed_matchups = [
-                    matchup
-                    for matchup in matchups
-                    if str(matchup["matchupPeriodId"]) == str(matchup_week)
-                ]
-                processed_data = {"matchups": processed_matchups}
-            elif data_type == "player_scoring_totals":
-                processed_player_totals = []
-                for player_total in data["players"]:
-                    if int(season) <= V2_CUTOFF:
-                        total_points = (
-                            player_total.get("player", {})
-                            .get("stats", [])[0]
-                            .get("appliedTotal")
-                        )
-                    else:
-                        total_points = (
-                            player_total.get("ratings", {})
-                            .get("0", {})
-                            .get("totalRating")
-                        )
-                    processed_player_total = {
-                        "player_id": player_total.get("player", {}).get("id"),
-                        "player_name": player_total.get("player", {}).get("fullName"),
-                        "position": player_total.get("player", {}).get(
-                            "defaultPositionId"
-                        ),
-                        "total_points": total_points,
-                    }
-                    processed_player_totals.append(processed_player_total)
-                processed_data = {"player_scoring_totals": processed_player_totals}
+            if data_type.startswith("matchups"):
+                filter_fn = _filter_matchups
             else:
-                raise ValueError(f"Invalid data_type: {data_type}")
-            processed_result = {
-                "season": season,
-                "data_type": data_type,
-                "data": processed_data,
-            }
+                filter_fn = _ESPN_DATA_FILTERS.get(data_type)
+                if filter_fn is None:
+                    raise ValueError(f"Invalid data_type: {data_type}")
 
-            processed_results.append(processed_result)
+            processed_results.append(
+                {
+                    "season": season,
+                    "data_type": data_type,
+                    "data": filter_fn(data, season, data_type),
+                }
+            )
 
         return processed_results

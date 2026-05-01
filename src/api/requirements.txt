@@ -1,4 +1,3 @@
-# boto3 and botocore are excluded — Lambda includes them in its runtime environment
 fastapi
 mangum
 uvicorn
