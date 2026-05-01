@@ -52,22 +52,37 @@ async function pollForCompletion(
   platform: 'ESPN' | 'SLEEPER',
   requestType: 'ONBOARD' | 'REFRESH',
 ): Promise<'success' | 'failed'> {
+  console.log('[pollForCompletion] Starting poll', { leagueId, platform, requestType });
   const deadline = Date.now() + POLL_TIMEOUT_MS;
   let consecutiveErrors = 0;
+  let pollCount = 0;
 
   while (Date.now() < deadline) {
+    pollCount += 1;
     await sleep(POLL_INTERVAL_MS);
     try {
       const statusData = await getRefreshStatus(leagueId, platform, requestType);
       const { refresh_status } = statusData.data;
+      console.log(`[pollForCompletion] Poll #${pollCount}: status=${refresh_status}`);
       consecutiveErrors = 0;
-      if (refresh_status === 'COMPLETED') return 'success';
-      if (refresh_status === 'FAILED') return 'failed';
-    } catch {
+      if (refresh_status === 'COMPLETED') {
+        console.log('[pollForCompletion] COMPLETED detected, returning success');
+        return 'success';
+      }
+      if (refresh_status === 'FAILED') {
+        console.log('[pollForCompletion] FAILED detected, returning failed');
+        return 'failed';
+      }
+    } catch (err) {
+      console.error(`[pollForCompletion] Poll #${pollCount} error:`, err);
       consecutiveErrors += 1;
-      if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) return 'failed';
+      if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+        console.log('[pollForCompletion] Max consecutive errors reached, returning failed');
+        return 'failed';
+      }
     }
   }
+  console.log('[pollForCompletion] Timeout reached, returning failed');
   return 'failed';
 }
 

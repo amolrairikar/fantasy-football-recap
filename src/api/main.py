@@ -166,7 +166,7 @@ def lookup_league(league_id: str, platform: Platform) -> str:
     pk = f"LEAGUE#{league_id}#PLATFORM#{platform.value}"
     sk = "LEAGUE_LOOKUP"
     try:
-        response = table.get_item(Key={"PK": pk, "SK": sk}, ConsistentRead=True)
+        response = table.get_item(Key={"PK": pk, "SK": sk})
     except botocore.exceptions.ClientError as e:
         logger.error("Boto error occurred: %s", e)
         raise HTTPException(
@@ -209,7 +209,7 @@ def get_league_metadata(canonical_league_id: str) -> dict:
     pk = f"LEAGUE#{canonical_league_id}"
     sk = "METADATA"
     try:
-        response = table.get_item(Key={"PK": pk, "SK": sk}, ConsistentRead=True)
+        response = table.get_item(Key={"PK": pk, "SK": sk})
     except botocore.exceptions.ClientError as e:
         logger.error("Boto error occurred: %s", e)
         raise HTTPException(
