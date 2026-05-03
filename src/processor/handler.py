@@ -5,10 +5,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
-from itertools import islice
-from typing import Any, Callable, Iterator
+from typing import Any, Callable
 
 import boto3
+import botocore.config
 import botocore.exceptions
 import duckdb
 import pandas as pd
@@ -16,11 +16,11 @@ import pandas as pd
 from logging_utils import logger
 from queries import QUERIES
 
-s3_client = boto3.client("s3")
+_retry_config = botocore.config.Config(retries={"mode": "standard"})
+s3_client = boto3.client("s3", config=_retry_config)
 table_name = os.environ["DYNAMODB_TABLE_NAME"]
-table = boto3.resource("dynamodb").Table(table_name)
-ddb_client = boto3.client("dynamodb")
-DYNAMO_BATCH_LIMIT = 25
+table = boto3.resource("dynamodb", config=_retry_config).Table(table_name)
+ddb_client = boto3.client("dynamodb", config=_retry_config)
 
 ESPN_POSITION_ID_MAPPING = {
     1: "QB",
@@ -79,9 +79,9 @@ def compile_espn_bench_stats(roster: dict, starter_ids: list[int]) -> list[dict]
                 "player_id": player_id,
                 "full_name": player["playerPoolEntry"]["player"]["fullName"],
                 "points_scored": player["playerPoolEntry"]["appliedStatTotal"],
-                "position": ESPN_POSITION_ID_MAPPING[
+                "position": ESPN_POSITION_ID_MAPPING.get(
                     player["playerPoolEntry"]["player"]["defaultPositionId"]
-                ],
+                ),
             }
         )
     return stats
@@ -121,9 +121,9 @@ def compile_espn_starter_stats(
                 "player_id": player_id,
                 "full_name": player["playerPoolEntry"]["player"]["fullName"],
                 "points_scored": player["playerPoolEntry"]["appliedStatTotal"],
-                "position": ESPN_POSITION_ID_MAPPING[
+                "position": ESPN_POSITION_ID_MAPPING.get(
                     player["playerPoolEntry"]["player"]["defaultPositionId"]
-                ],
+                ),
                 "fantasy_position": ESPN_FANTASY_POSITION_ID_MAPPING.get(
                     lineup_slot_id, "FLEX"
                 ),
@@ -148,20 +148,21 @@ def compile_sleeper_starter_stats(
         Tuple of (stats, ids) where stats is a list of dicts with player_id and
         points_scored, and ids is the list of starter player IDs.
     """
-    stats = [
-        {
-            "player_id": player_id,
-            "full_name": (player_metadata.get(player_id, {}).get("first_name") or "")
-            + " "
-            + (player_metadata.get(player_id, {}).get("last_name") or ""),
-            "points_scored": points,
-            "position": "D/ST"
-            if player_metadata.get(player_id, {}).get("position") == "DEF"
-            else player_metadata.get(player_id, {}).get("position"),
-            "fantasy_position": None,
-        }
-        for player_id, points in zip(starters, starters_points)
-    ]
+    stats = []
+    for player_id, points in zip(starters, starters_points):
+        meta = player_metadata.get(player_id, {})
+        position_raw = meta.get("position")
+        stats.append(
+            {
+                "player_id": player_id,
+                "full_name": (
+                    (meta.get("first_name") or "") + " " + (meta.get("last_name") or "")
+                ).strip(),
+                "points_scored": points,
+                "position": "D/ST" if position_raw == "DEF" else position_raw,
+                "fantasy_position": None,
+            }
+        )
     return stats, starters
 
 
@@ -183,16 +184,23 @@ def compile_sleeper_bench_stats(
     Returns:
         List of dicts with player_id and points_scored.
     """
-    return [
-        {
-            "player_id": player_id,
-            "full_name": player_metadata.get(player_id, {}).get("full_name"),
-            "points_scored": players_points.get(player_id, 0.0),
-            "position": player_metadata.get(player_id, {}).get("position"),
-        }
-        for player_id in players
-        if player_id not in starter_ids
-    ]
+    result = []
+    for player_id in players:
+        if player_id in starter_ids:
+            continue
+        meta = player_metadata.get(player_id, {})
+        position_raw = meta.get("position")
+        result.append(
+            {
+                "player_id": player_id,
+                "full_name": (
+                    (meta.get("first_name") or "") + " " + (meta.get("last_name") or "")
+                ).strip(),
+                "points_scored": players_points.get(player_id, 0.0),
+                "position": "D/ST" if position_raw == "DEF" else position_raw,
+            }
+        )
+    return result
 
 
 def compile_sleeper_player_scoring_totals(
@@ -299,16 +307,12 @@ def get_previous_version_id(bucket: str, key: str) -> str | None:
     Returns:
         The VersionId string of the previous version, or None.
     """
-    try:
-        response = s3_client.list_object_versions(Bucket=bucket, Prefix=key)
-        versions = [v for v in response.get("Versions", []) if v["Key"] == key]
-        versions.sort(key=lambda v: v["LastModified"], reverse=True)
-        if len(versions) > 1:
-            return versions[1]["VersionId"]
-        return None
-    except Exception as e:
-        logger.error(f"Error fetching version history for {key}: {e}")
-        return None
+    response = s3_client.list_object_versions(Bucket=bucket, Prefix=key)
+    versions = [v for v in response.get("Versions", []) if v["Key"] == key]
+    versions.sort(key=lambda v: v["LastModified"], reverse=True)
+    if len(versions) > 1:
+        return versions[1]["VersionId"]
+    return None
 
 
 def resolve_seasons_to_process(
@@ -650,6 +654,7 @@ def _register_sleeper_raw_data(
 
     all_users, all_rosters, all_matchups, all_draft_picks = [], [], [], []
     league_name_by_season: dict[str, str] = {}
+    scoring_settings_by_season: dict[str, dict] = {}
     for item in raw_data:
         if item["data_type"] == "users":
             for record in item["data"]:
@@ -745,10 +750,6 @@ def _register_sleeper_raw_data(
             league_name = item["data"].get("name")
             if league_name:
                 league_name_by_season[item["season"]] = league_name
-
-    scoring_settings_by_season: dict[str, dict] = {}
-    for item in raw_data:
-        if item["data_type"] == "league_settings":
             scoring_settings_by_season[item["season"]] = item["data"].get(
                 "scoring_settings", {}
             )
@@ -795,12 +796,14 @@ def register_raw_data(
     """
     if platform == "ESPN":
         grouped = _register_espn_raw_data(raw_data)
-    else:
+    elif platform == "SLEEPER":
         grouped = _register_sleeper_raw_data(
             raw_data,
             player_metadata=player_metadata or {},
             player_stats=player_stats or {},
         )
+    else:
+        raise ValueError("Unsupported platform: %s" % platform)
 
     for data_type, rows in grouped.items():
         if data_type == "league_name_by_season":
@@ -846,40 +849,20 @@ def dataframe_to_dynamo_items(
     return items
 
 
-def _chunked(iterable, size: int) -> Iterator[list]:
-    """
-    Yield successive non-overlapping chunks of length `size` from `iterable`.
-
-    Args:
-        iterable: Any iterable to split.
-        size: Maximum number of elements per chunk.
-
-    Yields:
-        Lists of up to `size` elements.
-    """
-    it = iter(iterable)
-    while chunk := list(islice(it, size)):
-        yield chunk
-
-
 def write_items(
-    table_name: str,
     items: list[dict],
 ) -> None:
     """
     Batch-write items to DynamoDB, handling the 25-item limit automatically.
 
     Args:
-        table_name: Target DynamoDB table name.
         items: List of dicts from dataframe_to_dynamo_items().
-        dynamodb_resource: Optional injected boto3 resource (for testing).
     """
-    for batch in _chunked(items, DYNAMO_BATCH_LIMIT):
-        with table.batch_writer() as writer:
-            for item in batch:
-                writer.put_item(Item=item)
+    with table.batch_writer() as writer:
+        for item in items:
+            writer.put_item(Item=item)
 
-    logger.info("Wrote %d items to %s", len(items), table_name)
+    logger.info("Wrote %d items to %s", len(items), table.name)
 
 
 def write_metadata_items(
@@ -893,14 +876,14 @@ def write_metadata_items(
         refresh: Whether this is a refresh operation (vs initial onboarding).
         league_name: Optional league name to include in the metadata.
     """
-    transact_items = []
-    if refresh:
-        update_expression = "SET refresh_status = :val"
-        expression_values = {":val": {"S": "COMPLETED"}}
-        if league_name:
-            update_expression += ", league_name = :league_name"
-            expression_values[":league_name"] = {"S": league_name}
-        transact_items.append(
+    status_attr = "refresh_status" if refresh else "onboarding_status"
+    update_expression = f"SET {status_attr} = :val"
+    expression_values = {":val": {"S": "COMPLETED"}}
+    if league_name:
+        update_expression += ", league_name = :league_name"
+        expression_values[":league_name"] = {"S": league_name}
+    ddb_client.transact_write_items(
+        TransactItems=[
             {
                 "Update": {
                     "TableName": table.name,
@@ -912,28 +895,8 @@ def write_metadata_items(
                     "ExpressionAttributeValues": expression_values,
                 }
             }
-        )
-    else:
-        update_expression = "SET onboarding_status = :val"
-        expression_values = {":val": {"S": "COMPLETED"}}
-        if league_name:
-            update_expression += ", league_name = :league_name"
-            expression_values[":league_name"] = {"S": league_name}
-        transact_items.append(
-            {
-                "Update": {
-                    "TableName": table.name,
-                    "Key": {
-                        "PK": {"S": f"LEAGUE#{league_id}"},
-                        "SK": {"S": "METADATA"},
-                    },
-                    "UpdateExpression": update_expression,
-                    "ExpressionAttributeValues": expression_values,
-                }
-            }
-        )
-
-    ddb_client.transact_write_items(TransactItems=transact_items)
+        ]
+    )
 
 
 def lambda_handler(event, context) -> None:
@@ -948,17 +911,20 @@ def lambda_handler(event, context) -> None:
     logger.info("Event data: %s", event)
     logger.info("Context data: %s", context)
 
-    put_request_principal = event["Records"][0]["userIdentity"]["principalId"].split(
-        ":"
-    )[-1]
+    try:
+        record = event["Records"][0]
+        put_request_principal = record["userIdentity"]["principalId"].split(":")[-1]
+        bucket = record["s3"]["bucket"]["name"]
+        key = record["s3"]["object"]["key"]
+    except (KeyError, IndexError) as e:
+        raise ValueError("Unexpected S3 event structure: missing key %s" % e) from e
+
     logger.info("Put request principal: %s", put_request_principal)
     if put_request_principal == "s3-replication":
         logger.info(
             "Lambda triggered by replication event, no further processing needed."
         )
-
-    bucket = event["Records"][0]["s3"]["bucket"]["name"]
-    key = event["Records"][0]["s3"]["object"]["key"]
+        return
     canonical_league_id = key.split("/")[1]
 
     previous_version_id = get_previous_version_id(bucket=bucket, key=key)
@@ -994,6 +960,7 @@ def lambda_handler(event, context) -> None:
             executor.submit(read_s3_object, bucket, f"{prefix}/{s}.json"): s
             for s in seasons_to_process
         }
+        failed_seasons = []
         for future in as_completed(future_to_season):
             season = future_to_season[future]
             try:
@@ -1002,6 +969,10 @@ def lambda_handler(event, context) -> None:
                 logger.info("Successfully processed season %s", season)
             except Exception as exc:
                 logger.error("Season %s generated an exception: %s", season, exc)
+                failed_seasons.append(season)
+
+    if failed_seasons:
+        raise RuntimeError("Failed to load seasons from S3: %s" % failed_seasons)
 
     player_metadata: dict = {}
     player_stats: dict = {}
@@ -1104,14 +1075,13 @@ def lambda_handler(event, context) -> None:
     ]
 
     for schema in schemas:
-        logger.info(f"Converting {schema.entity_type} data to DynamoDB items.")
+        logger.info("Converting %s data to DynamoDB items.", schema.entity_type)
         if schema in platform_specific_schemas:
             rel = con.sql(QUERIES[schema.entity_type.value][platform])
         else:
             rel = con.sql(QUERIES[schema.entity_type.value])
         con.register(f"{schema.entity_type.value}_output", rel)
         write_items(
-            table_name=table_name,
             items=dataframe_to_dynamo_items(rel=rel, schema=schema),
         )
 

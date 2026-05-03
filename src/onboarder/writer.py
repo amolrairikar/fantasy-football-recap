@@ -4,9 +4,14 @@ import os
 from typing import Any
 
 import boto3
+import botocore.config
 import botocore.exceptions
 
 from utils import logger
+
+_retry_config = botocore.config.Config(retries={"mode": "standard"})
+_s3 = boto3.client("s3", config=_retry_config)
+_dynamodb = boto3.client("dynamodb", config=_retry_config)
 
 
 def upload_results_to_s3(
@@ -25,15 +30,13 @@ def upload_results_to_s3(
         platform: The platform (e.g., ESPN, SLEEPER) that the league is on.
     """
     try:
-        s3 = boto3.client("s3")
-
         seasons_data: dict[str, list[dict[str, Any]]] = {}
         for item in results:
             season = str(item["season"])
             seasons_data.setdefault(season, []).append(item)
 
         for season, season_results in seasons_data.items():
-            s3.put_object(
+            _s3.put_object(
                 Bucket=bucket_name,
                 Key=f"{prefix}/{season}.json",
                 Body=json.dumps(season_results),
@@ -42,7 +45,7 @@ def upload_results_to_s3(
 
         manifest_key = f"{prefix}/manifest.json"
         try:
-            existing_manifest_obj = s3.get_object(Bucket=bucket_name, Key=manifest_key)
+            existing_manifest_obj = _s3.get_object(Bucket=bucket_name, Key=manifest_key)
             logger.info(
                 "Existing manifest found in S3, merging new seasons with existing manifest"
             )
@@ -61,7 +64,7 @@ def upload_results_to_s3(
         new_seasons = set(seasons_data.keys())
         full_manifest[platform] = sorted(existing_seasons.union(new_seasons))
 
-        s3.put_object(
+        _s3.put_object(
             Bucket=bucket_name,
             Key=f"{prefix}/manifest.json",
             Body=json.dumps(full_manifest),
@@ -70,7 +73,7 @@ def upload_results_to_s3(
         logger.info("Wrote manifest to S3")
     except botocore.exceptions.ClientError as e:
         logger.error("Error occurred while writing raw API JSON to S3: %s", e)
-        raise e
+        raise
 
 
 def write_onboarding_status_to_dynamodb(
@@ -80,7 +83,7 @@ def write_onboarding_status_to_dynamodb(
     seasons: list[str],
     request_type: str,
     is_new_season_refresh: bool = False,
-):
+) -> None:
     """
     Writes the onboarding status to DynamoDB for client to poll to determine onboarding status.
 
@@ -94,9 +97,8 @@ def write_onboarding_status_to_dynamodb(
             a new LEAGUE_LOOKUP item is created via Put instead of updating an existing one.
     """
     try:
-        dynamodb = boto3.client("dynamodb")
         table_name = os.environ["DYNAMODB_TABLE_NAME"]
-        now_iso = datetime.datetime.now().isoformat()
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
         if request_type == "REFRESH":
             if is_new_season_refresh:
@@ -176,12 +178,12 @@ def write_onboarding_status_to_dynamodb(
                 },
             ]
 
-        dynamodb.transact_write_items(TransactItems=transact_items)
-    except KeyError as e:
+        _dynamodb.transact_write_items(TransactItems=transact_items)
+    except KeyError:
         logger.error("Environment variable 'DYNAMODB_TABLE_NAME' not set!")
-        raise e
+        raise
     except botocore.exceptions.ClientError as e:
         logger.error(
             "Error occurred while writing onboarding job status to DynamoDB: %s", e
         )
-        raise e
+        raise

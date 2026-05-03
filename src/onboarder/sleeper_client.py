@@ -1,15 +1,17 @@
+import asyncio
 import os
-from typing import Any, Optional, Sequence, Union
+from typing import Any
 
 import aiohttp
-import asyncio
 import boto3
 import botocore.exceptions
 import requests
 
-from utils import logger
+from utils import EXTENDED_SEASON_CUTOFF, fetch_with_retry, logger, validate_api_results
 
 SLEEPER_BASE_URL = "https://api.sleeper.app/v1"
+MAX_CHAIN_DEPTH = 50
+_dynamodb = boto3.client("dynamodb")
 DATA_FETCH_TYPES = [
     "users",
     "rosters",
@@ -22,7 +24,7 @@ DATA_FETCH_TYPES = [
 ]
 
 
-def resolve_sleeper_canonical_league_id(new_league_id: str) -> Optional[str]:
+def resolve_sleeper_canonical_league_id(new_league_id: str) -> str | None:
     """
     Resolves the canonical_league_id for a new Sleeper season by walking the
     previous_league_id chain until a known league ID is found in DynamoDB.
@@ -34,20 +36,25 @@ def resolve_sleeper_canonical_league_id(new_league_id: str) -> Optional[str]:
         The canonical_league_id if a prior season is found in LEAGUE_LOOKUP, or None if
         the chain is exhausted without finding a match (truly unknown league).
     """
-    dynamodb = boto3.client("dynamodb")
     table_name = os.environ["DYNAMODB_TABLE_NAME"]
     current_id = new_league_id
+    depth = 0
 
     while True:
+        if depth >= MAX_CHAIN_DEPTH:
+            raise RuntimeError(
+                f"Exceeded maximum chain depth of {MAX_CHAIN_DEPTH} while resolving canonical league ID for {new_league_id}"
+            )
+        depth += 1
         url = f"{SLEEPER_BASE_URL}/league/{current_id}"
-        response = requests.get(url)
+        response = requests.get(url, timeout=(5, 30))
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             logger.error(
                 "Error fetching Sleeper league %s during chain walk: %s", current_id, e
             )
-            raise e
+            raise
 
         data = response.json()
         previous_league_id = data.get("previous_league_id", "0")
@@ -59,7 +66,7 @@ def resolve_sleeper_canonical_league_id(new_league_id: str) -> Optional[str]:
             return None
 
         try:
-            result = dynamodb.get_item(
+            result = _dynamodb.get_item(
                 TableName=table_name,
                 Key={
                     "PK": {"S": f"LEAGUE#{previous_league_id}#PLATFORM#SLEEPER"},
@@ -70,7 +77,7 @@ def resolve_sleeper_canonical_league_id(new_league_id: str) -> Optional[str]:
             logger.error(
                 "DynamoDB error while resolving Sleeper canonical league ID: %s", e
             )
-            raise e
+            raise
 
         item = result.get("Item")
         if item and item.get("canonical_league_id"):
@@ -126,15 +133,21 @@ class SleeperClient:
         """
         result: dict[str, str] = {}
         current_id = self.league_id
+        depth = 0
 
         while True:
+            if depth >= MAX_CHAIN_DEPTH:
+                raise RuntimeError(
+                    f"Exceeded maximum chain depth of {MAX_CHAIN_DEPTH} while fetching league seasons for {self.league_id}"
+                )
+            depth += 1
             url = f"{SLEEPER_BASE_URL}/league/{current_id}"
-            response = requests.get(url)
+            response = requests.get(url, timeout=(5, 30))
             try:
                 response.raise_for_status()
             except requests.exceptions.HTTPError as e:
                 logger.error("Error fetching Sleeper league %s: %s", current_id, e)
-                raise e
+                raise
 
             data = response.json()
             try:
@@ -155,6 +168,10 @@ class SleeperClient:
             current_id = previous_league_id
 
         return result
+
+    def get_seasons(self) -> list[str]:
+        """Returns the list of seasons this league has been active."""
+        return list(self.season_mapping.keys())
 
     def _construct_request_url(
         self, league_id: str, data_type: str, week: int | None = None
@@ -201,7 +218,11 @@ class SleeperClient:
         for season, league_id in self.season_mapping.items():
             for data_type in DATA_FETCH_TYPES:
                 if data_type in ("matchups", "transactions"):
-                    weeks = range(1, 19, 1) if int(season) >= 2021 else range(1, 18, 1)
+                    weeks = (
+                        range(1, 19)
+                        if int(season) >= EXTENDED_SEASON_CUTOFF
+                        else range(1, 18)
+                    )
                     for week in weeks:
                         full_url = self._construct_request_url(
                             league_id=league_id, data_type=data_type, week=week
@@ -221,14 +242,16 @@ class SleeperClient:
         Returns:
             All API request responses.
         """
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=30)
+        ) as session:
             semaphore = asyncio.Semaphore(10)
             tasks = [
                 self._fetch(session=session, semaphore=semaphore, url_data=url_data)
                 for url_data in self.request_urls
             ]
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            processed_results = self._process_api_results(results=results)
+            processed_results = validate_api_results(results=results)
 
             draft_pick_urls = self._build_draft_pick_urls(processed_results)
             if draft_pick_urls:
@@ -237,9 +260,7 @@ class SleeperClient:
                     for url_data in draft_pick_urls
                 ]
                 pick_results = await asyncio.gather(*pick_tasks, return_exceptions=True)
-                processed_results.extend(
-                    self._process_api_results(results=pick_results)
-                )
+                processed_results.extend(validate_api_results(results=pick_results))
 
             return processed_results
 
@@ -290,44 +311,8 @@ class SleeperClient:
         season, data_type, url = url_data
         async with semaphore:
             try:
-                async with session.get(url=url) as response:
-                    response.raise_for_status()
-                    data = await response.json()
-                    return {"season": season, "data_type": data_type, "data": data}
+                data = await fetch_with_retry(session=session, url=url)
+                return {"season": season, "data_type": data_type, "data": data}
             except Exception as e:
                 logger.error("Failed request for url: %s, error: %s", url, e)
                 return {"season": season, "data_type": data_type, "data": None}
-
-    def _process_api_results(
-        self,
-        results: Sequence[Union[dict[str, Any], BaseException]],
-    ) -> list[dict[str, Any]]:
-        """
-        Validates API responses and raises on any failure.
-
-        Args:
-            results: Unprocessed API responses.
-
-        Returns:
-            Validated API responses with no None data values.
-        """
-        processed_results = []
-        for result in results:
-            if isinstance(result, BaseException):
-                logger.error("Unhandled exception in gather: %s", result)
-                raise RuntimeError(
-                    f"Unexpected error occurred while fetching data: {result}"
-                )
-
-            season = result["season"]
-            data_type = result["data_type"]
-            data = result["data"]
-
-            if data is None:
-                raise RuntimeError(
-                    f"Failed to get data for season {season} and data type {data_type}"
-                )
-
-            processed_results.append(result)
-
-        return processed_results

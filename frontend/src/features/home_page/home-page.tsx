@@ -13,7 +13,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getManagerHistoryData } from '@/features/manager_history/api-calls';
 import type { ManagerStandingsItem } from '@/features/manager_history/api-calls';
 import type { MatchupItem } from '@/features/matchups/api-calls';
-import { getLeague } from './api-calls';
+import { getLeagueCookies } from '@/lib/cookie-handler';
+import { getLeague } from '@/components/api/leagues';
 
 type StatItem = { label: string; value: string; sub?: string };
 
@@ -25,13 +26,6 @@ type ChampionItem = {
   pfGame: string;
   highlight?: boolean;
 };
-
-function getCookie(name: string): string {
-  const match = document.cookie
-    .split('; ')
-    .find((row) => row.startsWith(`${name}=`));
-  return match ? decodeURIComponent(match.split('=')[1] ?? '') : '';
-}
 
 function StatsSkeleton() {
   return (
@@ -79,9 +73,64 @@ function LeagueNameHeader({ promise }: { promise: Promise<string | undefined> })
   );
 }
 
+type ChartDataResult = {
+  owners: { ownerId: string; username: string }[];
+  colorMap: Map<string, string>;
+  chartData: Record<string, string | number | null>[];
+  chartConfig: ChartConfig;
+  maxRank: number;
+};
+
+function buildChartData(standings: ManagerStandingsItem[]): ChartDataResult {
+  const ownerStandingsMap = new Map<string, ManagerStandingsItem[]>();
+  for (const row of standings) {
+    if (!ownerStandingsMap.has(row.owner_id)) ownerStandingsMap.set(row.owner_id, []);
+    ownerStandingsMap.get(row.owner_id)!.push(row);
+  }
+
+  const owners = [...ownerStandingsMap.entries()]
+    .map(([ownerId, rows]) => {
+      const mostRecent = [...rows].sort((a, b) => b.season.localeCompare(a.season))[0];
+      return { ownerId, username: mostRecent.owner_username };
+    })
+    .sort((a, b) => a.username.localeCompare(b.username));
+
+  const colorMap = new Map(owners.map((o, i) => [o.ownerId, avatarColor(i)]));
+  const allSeasons = [...new Set(standings.map((s) => s.season))].sort();
+
+  const chartData = allSeasons.map((season) => {
+    const point: Record<string, string | number | null> = { season };
+    for (const { ownerId } of owners) {
+      const ownerRows = ownerStandingsMap.get(ownerId) ?? [];
+      point[ownerId] = ownerRows.find((r) => r.season === season)?.final_rank ?? null;
+    }
+    return point;
+  });
+
+  const chartConfig: ChartConfig = Object.fromEntries(
+    owners.map((o, i) => [o.ownerId, { label: o.username, color: colorMap.get(o.ownerId) ?? avatarColor(i) }]),
+  );
+
+  const validRanks = chartData
+    .flatMap((d) =>
+      Object.entries(d)
+        .filter((entry): entry is [string, number | null] => entry[0] !== 'season')
+        .map(([, value]) => value),
+    )
+    .filter((r): r is number => r !== null);
+  const maxRank = validRanks.length > 0 ? Math.max(...validRanks) : 12;
+
+  return { owners, colorMap, chartData, chartConfig, maxRank };
+}
+
 function StandingsChart({ promise }: { promise: Promise<ManagerStandingsItem[]> }) {
   const standings = use(promise);
   const [selectedOwnerId, setSelectedOwnerId] = useState<string | null>(null);
+
+  const { owners, colorMap, chartData, chartConfig, maxRank } = useMemo(
+    () => buildChartData(standings),
+    [standings],
+  );
 
   if (standings.length === 0) {
     return (
@@ -92,58 +141,6 @@ function StandingsChart({ promise }: { promise: Promise<ManagerStandingsItem[]> 
       </div>
     );
   }
-
-  // Group standings by owner
-  const ownerStandingsMap = new Map<string, ManagerStandingsItem[]>();
-  for (const row of standings) {
-    if (!ownerStandingsMap.has(row.owner_id)) {
-      ownerStandingsMap.set(row.owner_id, []);
-    }
-    ownerStandingsMap.get(row.owner_id)!.push(row);
-  }
-
-  // Get unique owners sorted alphabetically for consistent color assignment
-  const owners = [...ownerStandingsMap.entries()]
-    .map(([ownerId, rows]) => {
-      const mostRecent = [...rows].sort((a, b) =>
-        b.season.localeCompare(a.season),
-      )[0];
-      return { ownerId, username: mostRecent.owner_username };
-    })
-    .sort((a, b) => a.username.localeCompare(b.username));
-
-  const colorMap = new Map(owners.map((o, i) => [o.ownerId, avatarColor(i)]));
-
-  // Get all unique seasons sorted
-  const allSeasons = [...new Set(standings.map((s) => s.season))].sort();
-
-  // Build chart data using final_rank
-  const chartData = allSeasons.map((season) => {
-    const point: Record<string, string | number | null> = { season };
-    for (const { ownerId } of owners) {
-      const ownerRows = ownerStandingsMap.get(ownerId) || [];
-      const seasonRow = ownerRows.find((r) => r.season === season);
-      point[ownerId] = seasonRow?.final_rank ?? null;
-    }
-    return point;
-  });
-
-  // Build chart config
-  const chartConfig: ChartConfig = Object.fromEntries(
-    owners.map((o, i) => [
-      o.ownerId,
-      { label: o.username, color: colorMap.get(o.ownerId) ?? avatarColor(i) },
-    ]),
-  );
-
-  // Calculate max rank for Y-axis domain
-  const allRanks = chartData.flatMap((d) =>
-    Object.entries(d)
-      .filter(([key]) => key !== 'season')
-      .map(([, value]) => value as number | null),
-  );
-  const validRanks = allRanks.filter((r): r is number => r !== null);
-  const maxRank = validRanks.length > 0 ? Math.max(...validRanks) : 12;
 
   return (
     <div className="bg-card border border-border/50 rounded-lg p-5">
@@ -265,7 +262,7 @@ function StatsWithTotalGames({
   totalGamesPromise: Promise<number>;
   championsPromise: Promise<ChampionItem[]>;
   totalMembersPromise: Promise<number>;
-  recordScorePromise: Promise<{ score: number; week: string; season: string }>;
+  recordScorePromise: Promise<{ score: number; week: string; season: string } | null>;
 }) {
   const totalGames = use(totalGamesPromise);
   const champions = use(championsPromise);
@@ -284,11 +281,9 @@ function StatsWithTotalGames({
       label: 'Total games',
       value: totalGames.toLocaleString(),
     },
-    {
-      label: 'Record score',
-      value: recordScore.score.toFixed(2),
-      sub: `Week ${recordScore.week}, ${recordScore.season}`,
-    },
+    recordScore
+      ? { label: 'Record score', value: recordScore.score.toFixed(2), sub: `Week ${recordScore.week}, ${recordScore.season}` }
+      : { label: 'Record score', value: '—' },
     {
       label: 'Total members',
       value: String(totalMembers),
@@ -323,18 +318,7 @@ function StatsWithTotalGames({
 }
 
 export default function HomePage() {
-  const leagueId = getCookie('leagueId');
-  const platform = (getCookie('leaguePlatform') || 'ESPN') as 'ESPN' | 'SLEEPER';
-
-  const seasons: string[] = useMemo(() => {
-    try {
-      return JSON.parse(
-        decodeURIComponent(getCookie('leagueSeasons')),
-      ) as string[];
-    } catch {
-      return [];
-    }
-  }, []);
+  const { leagueId, platform, seasons } = useMemo(() => getLeagueCookies(), []);
 
   const leagueNamePromise = useMemo(
     (): Promise<string | undefined> =>
@@ -366,6 +350,7 @@ export default function HomePage() {
     (): Promise<{ standings: ManagerStandingsItem[]; matchups: MatchupItem[] }> =>
       leagueId && seasons.length > 0
         ? getManagerHistoryData(leagueId, platform, seasons)
+            // Intentional empty-state fallback — apiClient surfaces the error to the global store before throwing
             .catch(() => ({ standings: [], matchups: [] }))
         : Promise.resolve({ standings: [], matchups: [] }),
     [leagueId, platform, seasons],
@@ -376,9 +361,13 @@ export default function HomePage() {
     (): Promise<ChampionItem[]> =>
       allDataPromise.then(({ standings }) => {
         if (seasons.length === 0) return [];
+        const bySeasonMap = new Map<string, ManagerStandingsItem[]>();
+        for (const row of standings) {
+          if (!bySeasonMap.has(row.season)) bySeasonMap.set(row.season, []);
+          bySeasonMap.get(row.season)!.push(row);
+        }
         return seasons.map((season) => {
-          const seasonStandings = standings.filter((s) => s.season === season);
-          const champion = seasonStandings.find((s) => s.champion === 'Yes');
+          const champion = bySeasonMap.get(season)?.find((s) => s.champion === 'Yes');
           if (champion) {
             return {
               season,
@@ -388,14 +377,7 @@ export default function HomePage() {
               pfGame: champion.avg_pf.toFixed(1),
             };
           }
-          return {
-            season,
-            name: 'TBD',
-            owner: '—',
-            record: '—',
-            pfGame: '—',
-            highlight: true,
-          };
+          return { season, name: 'TBD', owner: '—', record: '—', pfGame: '—', highlight: true };
         });
       }),
     [allDataPromise, seasons],
@@ -405,11 +387,11 @@ export default function HomePage() {
   const totalGamesPromise = useMemo(
     (): Promise<number> =>
       allDataPromise.then(({ matchups }) => {
-        if (seasons.length === 0) return 1120;
-        const seasonMatchups = seasons.map((season) =>
-          matchups.filter((m) => m.season === season).length,
-        );
-        return seasonMatchups.reduce((sum, count) => sum + count, 0);
+        const countBySeason = new Map<string, number>();
+        for (const m of matchups) {
+          countBySeason.set(m.season, (countBySeason.get(m.season) ?? 0) + 1);
+        }
+        return seasons.reduce((sum, season) => sum + (countBySeason.get(season) ?? 0), 0);
       }),
     [allDataPromise, seasons],
   );
@@ -418,7 +400,6 @@ export default function HomePage() {
   const totalMembersPromise = useMemo(
     (): Promise<number> =>
       allDataPromise.then(({ standings }) => {
-        if (standings.length === 0) return 10;
         const allOwners = new Set(standings.map((s) => s.owner_username));
         return allOwners.size;
       }),
@@ -427,9 +408,9 @@ export default function HomePage() {
 
   // Derive record score from the single data call
   const recordScorePromise = useMemo(
-    (): Promise<{ score: number; week: string; season: string }> =>
+    (): Promise<{ score: number; week: string; season: string } | null> =>
       allDataPromise.then(({ matchups }) => {
-        if (matchups.length === 0) return { score: 198.7, week: '11', season: '2021' };
+        if (matchups.length === 0) return null;
         let maxScore = 0;
         let maxWeek = '';
         let maxSeason = '';

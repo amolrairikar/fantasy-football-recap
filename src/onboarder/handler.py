@@ -18,13 +18,22 @@ def lambda_handler(event, context) -> dict[str, str | int]:
     Returns:
         dict: A response indicating the success of the operation.
     """
-    body = event["body"]
-    request_type = event["requestType"]
+    try:
+        body = event["body"]
+        request_type = event["requestType"]
+    except KeyError as e:
+        logger.error("Missing required field in event: %s", e)
+        return {
+            "statusCode": 400,
+            "body": json.dumps(
+                {"status": "failed", "error_msg": f"Missing required event field: {e}"}
+            ),
+        }
     # NOTE: We cannot log the event due to the potential for sensitive ESPN cookies
     logger.info("Starting league onboarding process execution.")
     logger.info("Context data: %s", context)
 
-    canonical_league_id = event.get("canonicalLeagueId", None)
+    canonical_league_id = event.get("canonicalLeagueId")
     is_new_season_refresh = False
 
     if (
@@ -44,7 +53,12 @@ def lambda_handler(event, context) -> dict[str, str | int]:
             logger.error("HTTP error resolving Sleeper canonical league ID: %s", e)
             return {
                 "statusCode": 502,
-                "body": json.dumps({"status": "failed", "error_msg": str(e)}),
+                "body": json.dumps(
+                    {
+                        "status": "failed",
+                        "error_msg": "An upstream service error occurred.",
+                    }
+                ),
             }
         except Exception as e:
             logger.error(
@@ -52,7 +66,12 @@ def lambda_handler(event, context) -> dict[str, str | int]:
             )
             return {
                 "statusCode": 500,
-                "body": json.dumps({"status": "failed", "error_msg": str(e)}),
+                "body": json.dumps(
+                    {
+                        "status": "failed",
+                        "error_msg": "An internal server error occurred.",
+                    }
+                ),
             }
 
         if not canonical_league_id:
@@ -103,7 +122,9 @@ def lambda_handler(event, context) -> dict[str, str | int]:
         )
         return {
             "statusCode": 502,
-            "body": json.dumps({"status": "failed", "error_msg": str(e)}),
+            "body": json.dumps(
+                {"status": "failed", "error_msg": "An upstream service error occurred."}
+            ),
         }
     except RuntimeError as e:
         logger.error(
@@ -111,7 +132,9 @@ def lambda_handler(event, context) -> dict[str, str | int]:
         )
         return {
             "statusCode": 502,
-            "body": json.dumps({"status": "failed", "error_msg": str(e)}),
+            "body": json.dumps(
+                {"status": "failed", "error_msg": "An upstream service error occurred."}
+            ),
         }
 
     try:
@@ -119,14 +142,18 @@ def lambda_handler(event, context) -> dict[str, str | int]:
     except KeyError as e:
         logger.error("Missing required environment variable: %s", e)
         return {
-            "statusCode": 400,
-            "body": json.dumps({"status": "failed", "error_msg": str(e)}),
+            "statusCode": 500,
+            "body": json.dumps(
+                {"status": "failed", "error_msg": "An internal server error occurred."}
+            ),
         }
     except RuntimeError as e:
         logger.error("Runtime error occurred while running onboarding service: %s", e)
         return {
             "statusCode": 502,
-            "body": json.dumps({"status": "failed", "error_msg": str(e)}),
+            "body": json.dumps(
+                {"status": "failed", "error_msg": "An upstream service error occurred."}
+            ),
         }
     except Exception as e:
         logger.error(
@@ -135,10 +162,7 @@ def lambda_handler(event, context) -> dict[str, str | int]:
         return {
             "statusCode": 500,
             "body": json.dumps(
-                {
-                    "status": "failed",
-                    "error_msg": f"Unexpected error occurred: {str(e)}",
-                }
+                {"status": "failed", "error_msg": "An internal server error occurred."}
             ),
         }
 

@@ -1,8 +1,11 @@
 import { useUser } from '@clerk/react';
-import { type LucideProps } from 'lucide-react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
+import { ErrorBoundary } from '@/components/error-boundary';
 import Header from '@/components/header';
+import { NavLink } from '@/components/nav-link';
+import { Spinner } from '@/components/spinner';
+import { isDemoMode } from '@/lib/cookie-handler';
 import { ModeToggle } from '@/components/mode-toggle';
 import {
   SidebarInset,
@@ -26,33 +29,6 @@ import HomePage from '@/features/home_page/home-page';
 import PrivacyPage from '@/features/privacy/privacy-page';
 import { AppSidebar } from '@/features/sidebar/app-sidebar';
 import MatchupRecords from '@/features/matchup_records/matchup-records';
-
-function NavLink({
-  href,
-  icon: Icon,
-  label,
-}: {
-  href: string;
-  icon: React.FC<LucideProps>;
-  label: string;
-}) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="
-        flex items-center gap-1.5 px-3 py-1.5 rounded-md
-        text-muted-foreground hover:text-foreground hover:bg-accent
-        font-mono text-xs tracking-wide
-        transition-colors duration-200
-      "
-    >
-      <Icon size={13} className="opacity-70" />
-      <span className="hidden sm:inline">{label}</span>
-    </a>
-  );
-}
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -78,46 +54,45 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </header>
-          {children}
+          <ErrorBoundary>{children}</ErrorBoundary>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>
   );
 }
 
-function isDemoMode(): boolean {
-  return document.cookie.split('; ').some((row) => row === 'demo_mode=true');
-}
-
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (isDemoMode()) return <>{children}</>;
   const { isSignedIn, isLoaded } = useUser();
-  if (!isLoaded) return null;
+  if (!isLoaded) return <div className="flex min-h-screen items-center justify-center"><Spinner className="size-6 text-muted-foreground" /></div>;
   if (!isSignedIn) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
+const APP_LAYOUT_ROUTES: { path: string; element: React.ReactNode }[] = [
+  { path: '/home', element: <HomePage /> },
+  { path: '/standings', element: <SeasonStandings /> },
+  { path: '/matchups', element: <Matchups /> },
+  { path: '/manager_comparison', element: <ManagerComparison /> },
+  { path: '/playoff_bracket', element: <PlayoffBracket /> },
+  { path: '/manager_history', element: <ManagerHistory /> },
+  { path: '/player_records', element: <PlayerRecords /> },
+  { path: '/matchup_records', element: <MatchupRecords /> },
+  { path: '/draft_recap', element: <DraftRecap /> },
+];
+
 function App() {
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <Routes>
-        <Route
-          path="/"
-          element={
-            <>
-              <Header />
-              <LeagueQLLanding />
-            </>
-          }
-        />
+        <Route path="/" element={<><Header /><LeagueQLLanding /></>} />
         <Route
           path="/league"
           element={
             <ProtectedRoute>
               <Header />
-              <div className="pt-1">
-                <LeagueSelection />
-              </div>
+              <div className="pt-1"><LeagueSelection /></div>
             </ProtectedRoute>
           }
         />
@@ -126,113 +101,25 @@ function App() {
           element={
             <ProtectedRoute>
               <Header />
-              <div className="pt-1">
-                <LeagueConnect />
-              </div>
+              <div className="pt-1"><LeagueConnect /></div>
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/home"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <HomePage />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/standings"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <SeasonStandings />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/matchups"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <Matchups />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manager_comparison"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <ManagerComparison />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/playoff_bracket"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <PlayoffBracket />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manager_history"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <ManagerHistory />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/player_records"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <PlayerRecords />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/matchup_records"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <MatchupRecords />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/draft_recap"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <DraftRecap />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/privacy"
-          element={
-            <>
-              <Header />
-              <PrivacyPage />
-            </>
-          }
-        />
+        {APP_LAYOUT_ROUTES.map(({ path, element }) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <ProtectedRoute>
+                <AppLayout>{element}</AppLayout>
+              </ProtectedRoute>
+            }
+          />
+        ))}
+        <Route path="/privacy" element={<><Header /><PrivacyPage /></>} />
       </Routes>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 

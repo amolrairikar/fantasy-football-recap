@@ -8,7 +8,9 @@ function getBaseUrl(): string {
   const override = import.meta.env.VITE_API_URL as string | undefined;
   if (override) return override;
   if (import.meta.env.PROD) return 'https://api.leagueql.com';
-  return 'https://p9o8piuh38.execute-api.us-east-1.amazonaws.com';
+  const devUrl = import.meta.env.VITE_DEV_API_URL as string | undefined;
+  if (!devUrl) throw new Error('VITE_DEV_API_URL must be set in development (see .env.local)');
+  return devUrl;
 }
 
 export const API_BASE_URL = getBaseUrl();
@@ -66,7 +68,7 @@ function getSessionToken(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+async function _doFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getSessionToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
@@ -98,6 +100,36 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const data: unknown = await response.json();
   clearApiError();
   return data as T;
+}
+
+// GET deduplication: in-flight requests are shared; settled responses are cached for CACHE_TTL_MS.
+const CACHE_TTL_MS = 30_000;
+const _inflight = new Map<string, Promise<unknown>>();
+const _cache = new Map<string, { data: unknown; expires: number }>();
+
+function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  if (method !== 'GET') return _doFetch<T>(path, init);
+
+  const cached = _cache.get(path);
+  if (cached && Date.now() < cached.expires) return Promise.resolve(cached.data as T);
+
+  const existing = _inflight.get(path);
+  if (existing) return existing as Promise<T>;
+
+  const promise = _doFetch<T>(path, init).then(
+    (data) => {
+      _cache.set(path, { data, expires: Date.now() + CACHE_TTL_MS });
+      _inflight.delete(path);
+      return data;
+    },
+    (err: unknown) => {
+      _inflight.delete(path);
+      throw err;
+    },
+  );
+  _inflight.set(path, promise);
+  return promise;
 }
 
 // ── Public client ─────────────────────────────────────────────────────────────
