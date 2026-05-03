@@ -1,5 +1,7 @@
 import json
+import logging
 import os
+import time
 from collections import defaultdict
 
 import boto3
@@ -8,12 +10,36 @@ import requests
 SLEEPER_BASE_URL = "https://api.sleeper.app/v1"
 
 
-# TODO: Replace with proper logging
-def logger() -> None:
-    """Simple logger function for Lambda."""
-    # In Lambda, this will use the default logger
-    # For local testing, this is a no-op
-    pass
+class JsonFormatter(logging.Formatter):
+    """Class to format logs in JSON format."""
+
+    def format(self, record) -> str:
+        log_object = {
+            "timestamp": int(time.time() * 1000),
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "function": record.funcName,
+        }
+        return json.dumps(log_object)
+
+
+def setup_logger() -> logging.Logger:
+    logger = logging.getLogger("leagueql")
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler()
+    handler.setFormatter(JsonFormatter())
+    if not logger.handlers:
+        logger.addHandler(handler)
+    return logger
+
+
+logger = setup_logger()
+
+DYNAMODB_TABLE_NAME = os.environ["DYNAMODB_TABLE_NAME"]
+ONBOARDER_LAMBDA_NAME = os.environ["ONBOARDER_LAMBDA_NAME"]
+
+_dynamodb_client = boto3.client("dynamodb")
+_lambda_client = boto3.client("lambda")
 
 
 def get_nfl_state() -> dict:
@@ -27,7 +53,7 @@ def get_nfl_state() -> dict:
         requests.exceptions.HTTPError: If the API request fails.
     """
     url = f"{SLEEPER_BASE_URL}/state/nfl"
-    response = requests.get(url)
+    response = requests.get(url, timeout=(5, 10))
     response.raise_for_status()
     return response.json()
 
@@ -42,18 +68,22 @@ def get_sleeper_leagues() -> list[str]:
     Raises:
         Exception: If DynamoDB query fails.
     """
-    dynamodb = boto3.client("dynamodb")
-    table_name = os.environ["DYNAMODB_TABLE_NAME"]
+    items = []
+    kwargs: dict = {
+        "TableName": DYNAMODB_TABLE_NAME,
+        "IndexName": "GSI2",
+        "KeyConditionExpression": "#p = :platform",
+        "ExpressionAttributeNames": {"#p": "platform"},
+        "ExpressionAttributeValues": {":platform": {"S": "SLEEPER"}},
+    }
 
-    # Query GSI2 for all SLEEPER platform items
-    response = dynamodb.query(
-        TableName=table_name,
-        IndexName="GSI2",
-        KeyConditionExpression="platform = :platform",
-        ExpressionAttributeValues={":platform": {"S": "SLEEPER"}},
-    )
-
-    items = response.get("Items", [])
+    while True:
+        response = _dynamodb_client.query(**kwargs)
+        items.extend(response.get("Items", []))
+        last_key = response.get("LastEvaluatedKey")
+        if not last_key:
+            break
+        kwargs["ExclusiveStartKey"] = last_key
 
     # Group by canonical_league_id and select the most recent season
     leagues_by_canonical = defaultdict(list)
@@ -89,16 +119,13 @@ def invoke_onboarder_lambda(league_id: str) -> None:
     Raises:
         Exception: If lambda invocation fails.
     """
-    lambda_client = boto3.client("lambda")
-    onboarder_lambda_name = os.environ["ONBOARDER_LAMBDA_NAME"]
-
     payload = {
         "requestType": "REFRESH",
         "body": {"leagueId": league_id, "platform": "SLEEPER"},
     }
 
-    response = lambda_client.invoke(
-        FunctionName=onboarder_lambda_name,
+    response = _lambda_client.invoke(
+        FunctionName=ONBOARDER_LAMBDA_NAME,
         InvocationType="Event",  # Asynchronous invocation
         Payload=json.dumps(payload),
     )
