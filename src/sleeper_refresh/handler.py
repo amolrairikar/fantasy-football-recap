@@ -16,7 +16,11 @@ def lambda_handler(event, context) -> dict[str, str | int]:
     """
     logger.info("Starting Sleeper refresh execution.")
     logger.info("Event data: %s", event)
-    logger.info("Context data: %s", context)
+    logger.info(
+        "Context data: request_id=%s, function_name=%s",
+        context.aws_request_id,
+        context.function_name,
+    )
 
     # Fetch current NFL state
     try:
@@ -78,7 +82,6 @@ def lambda_handler(event, context) -> dict[str, str | int]:
     # Invoke onboarder lambda for each league
     success_count = 0
     failure_count = 0
-    failures = []
 
     for league_id in sleeper_leagues:
         try:
@@ -87,7 +90,6 @@ def lambda_handler(event, context) -> dict[str, str | int]:
             logger.info("Successfully triggered refresh for league %s", league_id)
         except Exception as e:
             failure_count += 1
-            failures.append({"league_id": league_id, "error": str(e)})
             logger.error("Failed to trigger refresh for league %s: %s", league_id, e)
 
     logger.info(
@@ -104,7 +106,6 @@ def lambda_handler(event, context) -> dict[str, str | int]:
                 "total_leagues": len(sleeper_leagues),
                 "success_count": success_count,
                 "failure_count": failure_count,
-                "failures": failures,
             }
         ),
     }
