@@ -173,7 +173,7 @@ function StandingsChart({ promise }: { promise: Promise<ManagerStandingsItem[]> 
               }
             />
             <ChartLegend
-              content={
+              content={() => (
                 <div className="flex flex-wrap gap-4">
                   {owners.map((owner) => {
                     const isSelected = selectedOwnerId === null || selectedOwnerId === owner.ownerId;
@@ -194,7 +194,7 @@ function StandingsChart({ promise }: { promise: Promise<ManagerStandingsItem[]> 
                     );
                   })}
                 </div>
-              }
+              )}
             />
             {owners.map((owner) => {
               const isSelected = selectedOwnerId === null || selectedOwnerId === owner.ownerId;

@@ -1,222 +1,18 @@
 import { SignIn, useUser } from '@clerk/react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { setDemoMode } from '@/lib/cookie-handler';
 import { DEMO_SEASONS } from '@/lib/demo-constants';
-import { BROWSER_CHROME_COLORS } from '@/lib/color-constants';
 import { AboutDialog } from '@/features/about/about-dialog';
 import { PrivacyDialog } from '@/features/privacy/privacy-dialog';
 import {
-  SLIDES,
   FEATURES,
   FOOTER_LINKS,
 } from '@/features/landing_page/constants';
-import type { Slide, Feature } from '@/features/landing_page/types';
-
-interface ScreenshotPlaceholderProps {
-  title: string;
-}
-
-function ScreenshotPlaceholder({ title }: ScreenshotPlaceholderProps) {
-  return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-card">
-      <div className="flex flex-col items-center gap-2 opacity-40">
-        <svg
-          width="48"
-          height="48"
-          viewBox="0 0 48 48"
-          fill="none"
-          className="text-primary"
-        >
-          <rect
-            x="4"
-            y="4"
-            width="18"
-            height="18"
-            rx="3"
-            fill="currentColor"
-            fillOpacity="0.3"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
-          <rect
-            x="26"
-            y="4"
-            width="18"
-            height="18"
-            rx="3"
-            fill="currentColor"
-            fillOpacity="0.15"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
-          <rect
-            x="4"
-            y="26"
-            width="18"
-            height="18"
-            rx="3"
-            fill="currentColor"
-            fillOpacity="0.15"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
-          <rect
-            x="26"
-            y="26"
-            width="18"
-            height="18"
-            rx="3"
-            fill="currentColor"
-            fillOpacity="0.3"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
-        </svg>
-        <p className="font-mono text-xs text-muted-foreground tracking-widest uppercase">
-          Screenshot placeholder
-        </p>
-        <p className="font-mono text-[0.65rem] text-muted-foreground/60">
-          {title}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-interface BrowserChromeProps {
-  url: string;
-}
-
-function BrowserChrome({ url }: BrowserChromeProps) {
-  return (
-    <div className="bg-secondary/50 border-b border-border px-3.5 py-2.5 flex items-center gap-3">
-      <div className="flex gap-1.25">
-        <span
-          className="w-2.5 h-2.5 rounded-full"
-          style={{ backgroundColor: BROWSER_CHROME_COLORS.red }}
-        />
-        <span
-          className="w-2.5 h-2.5 rounded-full"
-          style={{ backgroundColor: BROWSER_CHROME_COLORS.yellow }}
-        />
-        <span
-          className="w-2.5 h-2.5 rounded-full"
-          style={{ backgroundColor: BROWSER_CHROME_COLORS.green }}
-        />
-      </div>
-      <div className="flex-1 bg-background/50 rounded h-5.5 flex items-center px-2.5">
-        <span className="font-mono text-[0.68rem] text-muted-foreground">
-          {url}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function Slideshow() {
-  const [current, setCurrent] = useState<number>(0);
-
-  const goTo = useCallback((n: number): void => {
-    setCurrent(((n % SLIDES.length) + SLIDES.length) % SLIDES.length);
-  }, []);
-
-  const next = useCallback((): void => goTo(current + 1), [current, goTo]);
-  const prev = useCallback((): void => goTo(current - 1), [current, goTo]);
-
-  useEffect(() => {
-    const t = setInterval(next, 4000);
-    return () => clearInterval(t);
-  }, [next]);
-
-  const slide: Slide = SLIDES[current];
-
-  return (
-    <section className="relative z-10 px-6 pb-24">
-      <div className="max-w-215 mx-auto">
-        <div className="rounded-xl overflow-hidden border border-border bg-card shadow-2xl">
-          <BrowserChrome url={slide.url} />
-
-          <div className="relative h-120 overflow-hidden">
-            {SLIDES.map((s: Slide, i: number) => (
-              <div
-                key={i}
-                className={`
-                  absolute inset-0 transition-opacity duration-500
-                  ${i === current ? 'opacity-100' : 'opacity-0 pointer-events-none'}
-                `}
-              >
-                {s.image ? (
-                  <img
-                    src={s.image}
-                    alt={s.title}
-                    className="w-full h-full object-contain bg-card"
-                  />
-                ) : (
-                  <ScreenshotPlaceholder title={s.title} />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex items-center justify-center gap-6 mt-5">
-          <button
-            onClick={prev}
-            aria-label="Previous slide"
-            className="
-              w-9 h-9 rounded-full flex items-center justify-center
-              bg-card border border-border text-muted-foreground
-              hover:bg-accent hover:text-foreground
-              transition-colors duration-200
-            "
-          >
-            <ChevronLeft size={16} />
-          </button>
-
-          <div className="flex gap-1.5">
-            {SLIDES.map((_: Slide, i: number) => (
-              <button
-                key={i}
-                onClick={() => goTo(i)}
-                aria-label={`Go to slide ${i + 1}`}
-                className={`
-                  h-1.5 rounded-full transition-all duration-300
-                  ${
-                    i === current
-                      ? 'w-4.5 bg-primary'
-                      : 'w-1.5 bg-border hover:bg-muted-foreground/30'
-                  }
-                `}
-              />
-            ))}
-          </div>
-
-          <button
-            onClick={next}
-            aria-label="Next slide"
-            className="
-              w-9 h-9 rounded-full flex items-center justify-center
-              bg-card border border-border text-muted-foreground
-              hover:bg-accent hover:text-foreground
-              transition-colors duration-200
-            "
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-
-        <p className="text-center font-mono text-[0.7rem] text-muted-foreground tracking-wide mt-3">
-          {slide.caption}
-        </p>
-      </div>
-    </section>
-  );
-}
+import type { Feature } from '@/features/landing_page/types';
 
 interface FeatureCardProps {
   icon: string;
@@ -335,16 +131,7 @@ export default function LeagueQLLanding() {
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
       <PrivacyDialog open={privacyOpen} onOpenChange={setPrivacyOpen} />
 
-      <Slideshow />
-
       <section className="relative z-10 px-6 pb-24">
-        <h2 className="text-center text-[2rem] font-heading tracking-tight text-foreground mb-2">
-          Your league&apos;s full story, in one place
-        </h2>
-        <p className="text-center text-muted-foreground text-sm mb-12">
-          Every matchup, milestone, and memory — going back to season one
-        </p>
-
         <div
           className="
           max-w-215 mx-auto
