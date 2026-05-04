@@ -1,3 +1,4 @@
+# noqa: D100
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed

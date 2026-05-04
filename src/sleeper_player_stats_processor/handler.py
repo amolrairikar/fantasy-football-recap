@@ -1,3 +1,4 @@
+# noqa: D100
 import json
 import os
 import time
