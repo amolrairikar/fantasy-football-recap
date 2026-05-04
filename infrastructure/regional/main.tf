@@ -29,12 +29,12 @@ module "onboarder_lambda" {
   memory_size          = 2048
   timeout              = 30
   log_retention        = 7
-  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/onboarder-lambda.zip"
 
   environment_variables = {
     DYNAMODB_TABLE_NAME = "leagueql-table-${var.environment}"
-    S3_BUCKET_NAME      = "leagueql-${var.environment}-bucket-${local.region}"
+    S3_BUCKET_NAME      = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   }
 
   tags = {
@@ -56,12 +56,12 @@ module "processor_lambda" {
   memory_size          = 2048
   timeout              = 120
   log_retention        = 7
-  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/processor-lambda.zip"
 
   environment_variables = {
     DYNAMODB_TABLE_NAME = "leagueql-table-${var.environment}"
-    S3_BUCKET_NAME      = "leagueql-${var.environment}-bucket-${local.region}"
+    S3_BUCKET_NAME      = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   }
 
   tags = {
@@ -82,13 +82,13 @@ module "api_lambda" {
   memory_size          = 1024
   timeout              = 15
   log_retention        = 7
-  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/api-lambda.zip"
 
   environment_variables = {
     DYNAMODB_TABLE_NAME   = "leagueql-table-${var.environment}"
     ONBOARDER_LAMBDA_NAME = "leagueql-onboarder-${var.environment}"
-    S3_BUCKET_NAME        = "leagueql-${var.environment}-bucket-${local.region}"
+    S3_BUCKET_NAME        = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   }
 
   tags = {
@@ -110,11 +110,11 @@ module "player_metadata_lambda" {
   memory_size          = 512
   timeout              = 30
   log_retention        = 7
-  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/player_metadata-lambda.zip"
 
   environment_variables = {
-    S3_BUCKET_NAME = "leagueql-${var.environment}-bucket-${local.region}"
+    S3_BUCKET_NAME = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   }
 
   tags = {
@@ -165,7 +165,7 @@ module "sleeper_refresh_lambda" {
   memory_size          = 512
   timeout              = 60
   log_retention        = 7
-  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/sleeper_refresh-lambda.zip"
 
   environment_variables = {
@@ -281,11 +281,11 @@ module "sleeper_player_stats_orchestrator_lambda" {
   memory_size          = 512
   timeout              = 300
   log_retention        = 7
-  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/sleeper_player_stats_orchestrator-lambda.zip"
 
   environment_variables = {
-    S3_BUCKET_NAME = "leagueql-${var.environment}-bucket-${local.region}"
+    S3_BUCKET_NAME = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
     SQS_QUEUE_URL  = aws_sqs_queue.sleeper_player_stats_queue[0].url
   }
 
@@ -309,11 +309,11 @@ module "sleeper_player_stats_processor_lambda" {
   timeout                         = 60
   log_retention                   = 7
   reserved_concurrent_executions  = 8
-  s3_bucket                       = "leagueql-${var.environment}-bucket-${local.region}"
+  s3_bucket                       = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key                          = "lambda-code-artifacts/sleeper_player_stats_processor-lambda.zip"
 
   environment_variables = {
-    S3_BUCKET_NAME = "leagueql-${var.environment}-bucket-${local.region}"
+    S3_BUCKET_NAME = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
     SQS_QUEUE_URL  = aws_sqs_queue.sleeper_player_stats_queue[0].url
   }
 
@@ -336,11 +336,11 @@ module "sleeper_player_stats_aggregator_lambda" {
   memory_size          = 1024
   timeout              = 300
   log_retention        = 7
-  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/sleeper_player_stats_aggregator-lambda.zip"
 
   environment_variables = {
-    S3_BUCKET_NAME = "leagueql-${var.environment}-bucket-${local.region}"
+    S3_BUCKET_NAME = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   }
 
   tags = {
