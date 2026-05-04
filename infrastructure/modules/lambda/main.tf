@@ -1,5 +1,11 @@
-# Create the log group explicitly to manage retention
+# Check if log group already exists
+data "aws_cloudwatch_log_group" "existing" {
+  name = "/aws/lambda/${var.function_name}"
+}
+
+# Create the log group only if it doesn't exist
 resource "aws_cloudwatch_log_group" "lambda_log_group" {
+  count             = data.aws_cloudwatch_log_group.existing.name == null ? 1 : 0
   name              = "/aws/lambda/${var.function_name}"
   retention_in_days = var.log_retention
   tags              = var.tags
@@ -40,5 +46,5 @@ resource "aws_lambda_function" "this" {
   }
 
   tags       = var.tags
-  depends_on = [aws_cloudwatch_log_group.lambda_log_group]
+  depends_on = aws_cloudwatch_log_group.lambda_log_group
 }
