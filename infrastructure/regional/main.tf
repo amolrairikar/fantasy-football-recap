@@ -262,7 +262,7 @@ resource "aws_sqs_queue" "sleeper_player_stats_queue" {
 module "sleeper_player_stats_orchestrator_lambda" {
   source = "../modules/lambda"
 
-  function_name        = "fantasy-football-recap-sleeper-player-stats-orchestrator-${var.environment}-${local.region}"
+  function_name        = "fantasy-football-recap-slp-stats-orchestrator-${var.environment}-${local.region}"
   function_description = "Reads active players from S3 and enqueues per-player stats fetch messages to SQS"
   role_arn             = var.sleeper_player_stats_orchestrator_lambda_role_arn
   handler              = "handler.lambda_handler"
@@ -288,7 +288,7 @@ module "sleeper_player_stats_orchestrator_lambda" {
 module "sleeper_player_stats_processor_lambda" {
   source = "../modules/lambda"
 
-  function_name                   = "fantasy-football-recap-sleeper-player-stats-processor-${var.environment}-${local.region}"
+  function_name                   = "fantasy-football-recap-slp-stats-processor-${var.environment}-${local.region}"
   function_description            = "Fetches stats for one player per SQS message and writes to S3 staging"
   role_arn                        = var.sleeper_player_stats_processor_lambda_role_arn
   handler                         = "handler.lambda_handler"
@@ -315,7 +315,7 @@ module "sleeper_player_stats_processor_lambda" {
 module "sleeper_player_stats_aggregator_lambda" {
   source = "../modules/lambda"
 
-  function_name        = "fantasy-football-recap-sleeper-player-stats-aggregator-${var.environment}-${local.region}"
+  function_name        = "fantasy-football-recap-slp-stats-aggregator-${var.environment}-${local.region}"
   function_description = "Merges all staging player stats files into the final JSON and cleans up staging"
   role_arn             = var.sleeper_player_stats_aggregator_lambda_role_arn
   handler              = "handler.lambda_handler"

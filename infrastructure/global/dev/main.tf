@@ -138,13 +138,13 @@ module "s3-bidirectional-replication" {
     },
     # TODO: uncomment once sleeper-player-stats lambdas are deployed
     # {
-    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-sleeper-player-stats-orchestrator-${var.environment}-east"
+    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-slp-stats-orchestrator-${var.environment}-east"
     #   events              = ["s3:ObjectCreated:Put"]
     #   filter_prefix       = "player-metadata/"
     #   filter_suffix       = "sleeper_nfl_players.json"
     # },
     # {
-    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-sleeper-player-stats-aggregator-${var.environment}-east"
+    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-slp-stats-aggregator-${var.environment}-east"
     #   events              = ["s3:ObjectCreated:Put"]
     #   filter_prefix       = "player-stats/staging/"
     #   filter_suffix       = "complete.json"
@@ -645,8 +645,8 @@ module "sleeper-player-stats-orchestrator-lambda-role" {
           "logs:PutLogEvents"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-player-stats-orchestrator-${var.environment}-east:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-player-stats-orchestrator-${var.environment}-west:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-orchestrator-${var.environment}-east:*",
+          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-orchestrator-${var.environment}-west:*"
         ]
       },
       {
@@ -722,8 +722,8 @@ module "sleeper-player-stats-processor-lambda-role" {
           "logs:PutLogEvents"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-player-stats-processor-${var.environment}-east:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-player-stats-processor-${var.environment}-west:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-processor-${var.environment}-east:*",
+          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-processor-${var.environment}-west:*"
         ]
       },
       {
@@ -811,8 +811,8 @@ module "sleeper-player-stats-aggregator-lambda-role" {
           "logs:PutLogEvents"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-player-stats-aggregator-${var.environment}-east:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-player-stats-aggregator-${var.environment}-west:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-aggregator-${var.environment}-east:*",
+          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-aggregator-${var.environment}-west:*"
         ]
       },
       {
