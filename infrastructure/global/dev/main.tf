@@ -151,15 +151,6 @@ module "s3-bidirectional-replication" {
     # }
   ]
 
-  secondary_event_notifications = [
-    {
-      lambda_function_arn = "arn:aws:lambda:us-west-2:${var.account_id}:function:fantasy-football-recap-processor-${var.environment}-west"
-      events              = ["s3:ObjectCreated:*"]
-      filter_prefix       = "raw-api-data/"
-      filter_suffix       = "manifest.json"
-    }
-  ]
-
   tags = {
     environment = var.environment
     project     = "fantasy-football-recap"
@@ -194,8 +185,7 @@ module "onboarding-lambda-role" {
           "logs:CreateLogGroup"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:*"
         ]
       },
       {
@@ -206,8 +196,7 @@ module "onboarding-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-onboarder-${var.environment}-east:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-onboarder-${var.environment}-west:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-onboarder-${var.environment}-east:*"
         ]
       },
       {
@@ -218,8 +207,7 @@ module "onboarding-lambda-role" {
           "s3:ListBucketVersions"
         ],
         Resource = [
-          local.primary_bucket_arn,
-          local.secondary_bucket_arn
+          local.primary_bucket_arn
         ]
       },
       {
@@ -229,8 +217,7 @@ module "onboarding-lambda-role" {
           "s3:GetObject",
         ]
         Resource = [
-          "${local.primary_bucket_arn}/raw-api-data/*",
-          "${local.secondary_bucket_arn}/raw-api-data/*"
+          "${local.primary_bucket_arn}/raw-api-data/*"
         ]
       },
       {
@@ -241,8 +228,7 @@ module "onboarding-lambda-role" {
           "s3:PutObjectAcl"
         ]
         Resource = [
-          "${local.primary_bucket_arn}/raw-api-data/*",
-          "${local.secondary_bucket_arn}/raw-api-data/*"
+          "${local.primary_bucket_arn}/raw-api-data/*"
         ]
       },
       {
@@ -254,8 +240,7 @@ module "onboarding-lambda-role" {
           "dynamodb:UpdateItem",
         ]
         Resource = [
-          module.dynamodb.primary_table_arn,
-          module.dynamodb.replica_table_arn
+          module.dynamodb.primary_table_arn
         ]
       }
     ]
@@ -295,8 +280,7 @@ module "processing-lambda-role" {
           "logs:CreateLogGroup"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:*"
         ]
       },
       {
@@ -307,8 +291,7 @@ module "processing-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-processor-${var.environment}-east:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-processor-${var.environment}-west:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-processor-${var.environment}-east:*"
         ]
       },
       {
@@ -321,8 +304,7 @@ module "processing-lambda-role" {
           "dynamodb:GetItem"
         ]
         Resource = [
-          module.dynamodb.primary_table_arn,
-          module.dynamodb.replica_table_arn
+          module.dynamodb.primary_table_arn
         ]
       },
       {
@@ -333,8 +315,7 @@ module "processing-lambda-role" {
           "s3:ListBucketVersions"
         ],
         Resource = [
-          local.primary_bucket_arn,
-          local.secondary_bucket_arn
+          local.primary_bucket_arn
         ]
       },
       {
@@ -345,8 +326,7 @@ module "processing-lambda-role" {
           "s3:GetObjectVersion",
         ]
         Resource = [
-          "${local.primary_bucket_arn}/raw-api-data/*",
-          "${local.secondary_bucket_arn}/raw-api-data/*"
+          "${local.primary_bucket_arn}/raw-api-data/*"
         ]
       },
       {
@@ -356,8 +336,7 @@ module "processing-lambda-role" {
           "s3:GetObject",
         ]
         Resource = [
-          "${local.primary_bucket_arn}/player-metadata/*",
-          "${local.secondary_bucket_arn}/player-metadata/*"
+          "${local.primary_bucket_arn}/player-metadata/*"
         ]
       },
       {
@@ -367,8 +346,7 @@ module "processing-lambda-role" {
           "s3:GetObject",
         ]
         Resource = [
-          "${local.primary_bucket_arn}/player-stats/*",
-          "${local.secondary_bucket_arn}/player-stats/*"
+          "${local.primary_bucket_arn}/player-stats/*"
         ]
       }
     ]
@@ -408,8 +386,7 @@ module "player-metadata-lambda-role" {
           "logs:CreateLogGroup"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:*"
         ]
       },
       {
@@ -420,8 +397,7 @@ module "player-metadata-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-player-metadata-${var.environment}-east:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-player-metadata-${var.environment}-west:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-player-metadata-${var.environment}-east:*"
         ]
       },
       {
@@ -432,8 +408,7 @@ module "player-metadata-lambda-role" {
           "s3:PutObjectAcl"
         ]
         Resource = [
-          "${local.primary_bucket_arn}/player-metadata/*",
-          "${local.secondary_bucket_arn}/player-metadata/*"
+          "${local.primary_bucket_arn}/player-metadata/*"
         ]
       }
     ]
@@ -517,8 +492,7 @@ module "api-lambda-role" {
           "lambda:InvokeFunction"
         ]
         Resource = [
-          "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-onboarder-${var.environment}-east",
-          "arn:aws:lambda:us-west-2:${var.account_id}:function:fantasy-football-recap-onboarder-${var.environment}-west"
+          "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-onboarder-${var.environment}-east"
         ]
       },
       {
@@ -633,8 +607,7 @@ module "sleeper-player-stats-orchestrator-lambda-role" {
           "logs:CreateLogGroup"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:*"
         ]
       },
       {
@@ -645,8 +618,7 @@ module "sleeper-player-stats-orchestrator-lambda-role" {
           "logs:PutLogEvents"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-orchestrator-${var.environment}-east:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-orchestrator-${var.environment}-west:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-orchestrator-${var.environment}-east:*"
         ]
       },
       {
@@ -656,8 +628,7 @@ module "sleeper-player-stats-orchestrator-lambda-role" {
           "s3:GetObject"
         ]
         Resource = [
-          "${local.primary_bucket_arn}/player-metadata/*",
-          "${local.secondary_bucket_arn}/player-metadata/*"
+          "${local.primary_bucket_arn}/player-metadata/*"
         ]
       },
       {
@@ -669,8 +640,7 @@ module "sleeper-player-stats-orchestrator-lambda-role" {
           "sqs:GetQueueUrl"
         ]
         Resource = [
-          "arn:aws:sqs:us-east-1:${var.account_id}:sleeper-player-stats-processor-${var.environment}-east",
-          "arn:aws:sqs:us-west-2:${var.account_id}:sleeper-player-stats-processor-${var.environment}-west"
+          "arn:aws:sqs:us-east-1:${var.account_id}:sleeper-player-stats-processor-${var.environment}-east"
         ]
       }
     ]
@@ -710,8 +680,7 @@ module "sleeper-player-stats-processor-lambda-role" {
           "logs:CreateLogGroup"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:*"
         ]
       },
       {
@@ -722,8 +691,7 @@ module "sleeper-player-stats-processor-lambda-role" {
           "logs:PutLogEvents"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-processor-${var.environment}-east:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-processor-${var.environment}-west:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-processor-${var.environment}-east:*"
         ]
       },
       {
@@ -733,8 +701,7 @@ module "sleeper-player-stats-processor-lambda-role" {
           "s3:PutObject"
         ]
         Resource = [
-          "${local.primary_bucket_arn}/player-stats/staging/*",
-          "${local.secondary_bucket_arn}/player-stats/staging/*"
+          "${local.primary_bucket_arn}/player-stats/staging/*"
         ]
       },
       {
@@ -744,8 +711,7 @@ module "sleeper-player-stats-processor-lambda-role" {
           "s3:GetObject"
         ]
         Resource = [
-          "${local.primary_bucket_arn}/player-stats/staging/complete.json",
-          "${local.secondary_bucket_arn}/player-stats/staging/complete.json"
+          "${local.primary_bucket_arn}/player-stats/staging/complete.json"
         ]
       },
       {
@@ -758,8 +724,7 @@ module "sleeper-player-stats-processor-lambda-role" {
           "sqs:GetQueueUrl"
         ]
         Resource = [
-          "arn:aws:sqs:us-east-1:${var.account_id}:sleeper-player-stats-processor-${var.environment}-east",
-          "arn:aws:sqs:us-west-2:${var.account_id}:sleeper-player-stats-processor-${var.environment}-west"
+          "arn:aws:sqs:us-east-1:${var.account_id}:sleeper-player-stats-processor-${var.environment}-east"
         ]
       }
     ]
@@ -799,8 +764,7 @@ module "sleeper-player-stats-aggregator-lambda-role" {
           "logs:CreateLogGroup"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:*"
         ]
       },
       {
@@ -811,8 +775,7 @@ module "sleeper-player-stats-aggregator-lambda-role" {
           "logs:PutLogEvents"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-aggregator-${var.environment}-east:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-aggregator-${var.environment}-west:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-aggregator-${var.environment}-east:*"
         ]
       },
       {
@@ -822,8 +785,7 @@ module "sleeper-player-stats-aggregator-lambda-role" {
           "s3:ListBucket"
         ]
         Resource = [
-          local.primary_bucket_arn,
-          local.secondary_bucket_arn
+          local.primary_bucket_arn
         ]
       },
       {
@@ -834,8 +796,7 @@ module "sleeper-player-stats-aggregator-lambda-role" {
           "s3:DeleteObject"
         ]
         Resource = [
-          "${local.primary_bucket_arn}/player-stats/staging/*",
-          "${local.secondary_bucket_arn}/player-stats/staging/*"
+          "${local.primary_bucket_arn}/player-stats/staging/*"
         ]
       },
       {
@@ -845,8 +806,7 @@ module "sleeper-player-stats-aggregator-lambda-role" {
           "s3:PutObject"
         ]
         Resource = [
-          "${local.primary_bucket_arn}/player-stats/sleeper_nfl_player_stats.json",
-          "${local.secondary_bucket_arn}/player-stats/sleeper_nfl_player_stats.json"
+          "${local.primary_bucket_arn}/player-stats/sleeper_nfl_player_stats.json"
         ]
       }
     ]
@@ -886,8 +846,7 @@ module "sleeper-refresh-lambda-role" {
           "logs:CreateLogGroup"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:*"
         ]
       },
       {
@@ -898,8 +857,7 @@ module "sleeper-refresh-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-refresh-${var.environment}-east:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-refresh-${var.environment}-west:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-refresh-${var.environment}-east:*"
         ]
       },
       {
@@ -910,9 +868,7 @@ module "sleeper-refresh-lambda-role" {
         ]
         Resource = [
           module.dynamodb.primary_table_arn,
-          module.dynamodb.replica_table_arn,
-          "${module.dynamodb.primary_table_arn}/index/GSI2",
-          "${module.dynamodb.replica_table_arn}/index/GSI2"
+          "${module.dynamodb.primary_table_arn}/index/GSI2"
         ]
       },
       {
@@ -922,8 +878,7 @@ module "sleeper-refresh-lambda-role" {
           "lambda:InvokeFunction"
         ]
         Resource = [
-          "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-onboarder-${var.environment}-east",
-          "arn:aws:lambda:us-west-2:${var.account_id}:function:fantasy-football-recap-onboarder-${var.environment}-west"
+          "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-onboarder-${var.environment}-east"
         ]
       }
     ]

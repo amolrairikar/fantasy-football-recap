@@ -20,6 +20,7 @@ locals {
 
 module "onboarder_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
   function_name        = "fantasy-football-recap-onboarder-${var.environment}-${local.region}"
   function_description = "Lambda function for onboarding a fantasy football league"
@@ -46,6 +47,7 @@ module "onboarder_lambda" {
 
 module "processor_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
   function_name        = "fantasy-football-recap-processor-${var.environment}-${local.region}"
   function_description = "Lambda function for processing raw fantasy football league data"
@@ -86,7 +88,7 @@ module "api_lambda" {
 
   environment_variables = {
     DYNAMODB_TABLE_NAME   = "fantasy-football-recap-table-${var.environment}"
-    ONBOARDER_LAMBDA_NAME = "fantasy-football-recap-onboarder-${var.environment}-${local.region}"
+    ONBOARDER_LAMBDA_NAME = "fantasy-football-recap-onboarder-${var.environment}-east"
     S3_BUCKET_NAME        = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
   }
 
@@ -100,6 +102,7 @@ module "api_lambda" {
 
 module "player_metadata_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
   function_name        = "fantasy-football-recap-player-metadata-${var.environment}-${local.region}"
   function_description = "Fetches and caches Sleeper NFL player metadata to S3"
@@ -124,9 +127,10 @@ module "player_metadata_lambda" {
 }
 
 resource "aws_cloudwatch_event_rule" "player_metadata_schedule" {
+  count               = local.region == "east" ? 1 : 0
   name                = "player-metadata-refresh-${var.environment}-${local.region}"
   schedule_expression = "cron(0 12 ? * TUE,THU *)"
-  state               = local.region == "east" ? "ENABLED" : "DISABLED"
+  state               = "ENABLED"
 
   tags = {
     environment = var.environment
@@ -137,20 +141,23 @@ resource "aws_cloudwatch_event_rule" "player_metadata_schedule" {
 }
 
 resource "aws_cloudwatch_event_target" "player_metadata_target" {
-  rule = aws_cloudwatch_event_rule.player_metadata_schedule.name
-  arn  = module.player_metadata_lambda.lambda_arn
+  count = local.region == "east" ? 1 : 0
+  rule  = aws_cloudwatch_event_rule.player_metadata_schedule[0].name
+  arn   = module.player_metadata_lambda[0].lambda_arn
 }
 
 resource "aws_lambda_permission" "allow_eventbridge_player_metadata" {
+  count         = local.region == "east" ? 1 : 0
   statement_id  = "AllowEventBridgeInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = module.player_metadata_lambda.lambda_arn
+  function_name = module.player_metadata_lambda[0].lambda_arn
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.player_metadata_schedule.arn
+  source_arn    = aws_cloudwatch_event_rule.player_metadata_schedule[0].arn
 }
 
 module "sleeper_refresh_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
   function_name        = "fantasy-football-recap-sleeper-refresh-${var.environment}-${local.region}"
   function_description = "Lambda function to schedule Sleeper league refreshes"
@@ -176,9 +183,10 @@ module "sleeper_refresh_lambda" {
 }
 
 resource "aws_cloudwatch_event_rule" "sleeper_refresh_schedule" {
+  count               = local.region == "east" ? 1 : 0
   name                = "sleeper-refresh-schedule-${var.environment}-${local.region}"
   schedule_expression = "cron(0 13 ? * TUE *)"
-  state               = local.region == "east" ? "ENABLED" : "DISABLED"
+  state               = "ENABLED"
 
   tags = {
     environment = var.environment
@@ -189,16 +197,18 @@ resource "aws_cloudwatch_event_rule" "sleeper_refresh_schedule" {
 }
 
 resource "aws_cloudwatch_event_target" "sleeper_refresh_target" {
-  rule = aws_cloudwatch_event_rule.sleeper_refresh_schedule.name
-  arn  = module.sleeper_refresh_lambda.lambda_arn
+  count = local.region == "east" ? 1 : 0
+  rule  = aws_cloudwatch_event_rule.sleeper_refresh_schedule[0].name
+  arn   = module.sleeper_refresh_lambda[0].lambda_arn
 }
 
 resource "aws_lambda_permission" "allow_eventbridge_sleeper_refresh" {
+  count         = local.region == "east" ? 1 : 0
   statement_id  = "AllowEventBridgeInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = module.sleeper_refresh_lambda.lambda_arn
+  function_name = module.sleeper_refresh_lambda[0].lambda_arn
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.sleeper_refresh_schedule.arn
+  source_arn    = aws_cloudwatch_event_rule.sleeper_refresh_schedule[0].arn
 }
 
 module "backend_api" {
@@ -230,6 +240,7 @@ module "backend_api" {
 }
 
 resource "aws_sqs_queue" "sleeper_player_stats_dlq" {
+  count                     = local.region == "east" ? 1 : 0
   name                      = "sleeper-player-stats-processor-dlq-${var.environment}-${local.region}"
   message_retention_seconds = 1209600
 
@@ -242,12 +253,13 @@ resource "aws_sqs_queue" "sleeper_player_stats_dlq" {
 }
 
 resource "aws_sqs_queue" "sleeper_player_stats_queue" {
+  count                      = local.region == "east" ? 1 : 0
   name                       = "sleeper-player-stats-processor-${var.environment}-${local.region}"
   visibility_timeout_seconds = 120
   message_retention_seconds  = 86400
   receive_wait_time_seconds  = 20
   redrive_policy = jsonencode({
-    deadLetterTargetArn = aws_sqs_queue.sleeper_player_stats_dlq.arn
+    deadLetterTargetArn = aws_sqs_queue.sleeper_player_stats_dlq[0].arn
     maxReceiveCount     = 3
   })
 
@@ -261,6 +273,7 @@ resource "aws_sqs_queue" "sleeper_player_stats_queue" {
 
 module "sleeper_player_stats_orchestrator_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
   function_name        = "fantasy-football-recap-slp-stats-orchestrator-${var.environment}-${local.region}"
   function_description = "Reads active players from S3 and enqueues per-player stats fetch messages to SQS"
@@ -274,7 +287,7 @@ module "sleeper_player_stats_orchestrator_lambda" {
 
   environment_variables = {
     S3_BUCKET_NAME = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
-    SQS_QUEUE_URL  = aws_sqs_queue.sleeper_player_stats_queue.url
+    SQS_QUEUE_URL  = aws_sqs_queue.sleeper_player_stats_queue[0].url
   }
 
   tags = {
@@ -287,6 +300,7 @@ module "sleeper_player_stats_orchestrator_lambda" {
 
 module "sleeper_player_stats_processor_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
   function_name                   = "fantasy-football-recap-slp-stats-processor-${var.environment}-${local.region}"
   function_description            = "Fetches stats for one player per SQS message and writes to S3 staging"
@@ -295,13 +309,13 @@ module "sleeper_player_stats_processor_lambda" {
   memory_size                     = 256
   timeout                         = 60
   log_retention                   = 7
-  reserved_concurrent_executions  = local.region == "east" ? 8 : -1
+  reserved_concurrent_executions  = 8
   s3_bucket                       = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key                          = "lambda-code-artifacts/sleeper_player_stats_processor-lambda.zip"
 
   environment_variables = {
     S3_BUCKET_NAME = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
-    SQS_QUEUE_URL  = aws_sqs_queue.sleeper_player_stats_queue.url
+    SQS_QUEUE_URL  = aws_sqs_queue.sleeper_player_stats_queue[0].url
   }
 
   tags = {
@@ -314,6 +328,7 @@ module "sleeper_player_stats_processor_lambda" {
 
 module "sleeper_player_stats_aggregator_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
   function_name        = "fantasy-football-recap-slp-stats-aggregator-${var.environment}-${local.region}"
   function_description = "Merges all staging player stats files into the final JSON and cleans up staging"
@@ -338,11 +353,12 @@ module "sleeper_player_stats_aggregator_lambda" {
 }
 
 resource "aws_lambda_event_source_mapping" "sleeper_player_stats_processor_sqs" {
-  event_source_arn                   = aws_sqs_queue.sleeper_player_stats_queue.arn
-  function_name                      = module.sleeper_player_stats_processor_lambda.lambda_arn
+  count                              = local.region == "east" ? 1 : 0
+  event_source_arn                   = aws_sqs_queue.sleeper_player_stats_queue[0].arn
+  function_name                      = module.sleeper_player_stats_processor_lambda[0].lambda_arn
   batch_size                         = 1
   maximum_batching_window_in_seconds = 0
-  enabled                            = local.region == "east" ? true : false
+  enabled                            = true
 }
 
 resource "aws_cloudwatch_log_resource_policy" "apigateway_log_delivery" {
