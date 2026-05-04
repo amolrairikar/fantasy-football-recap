@@ -172,7 +172,7 @@ jobs:
         run: |
           terraform init \
             -backend-config="bucket=$TF_STATE_BUCKET" \
-            -backend-config="key=fantasy-football-recap/${{ env.ENVIRONMENT }}/regional-${{ matrix.region }}-terraform.tfstate" \
+            -backend-config="key=leagueql/${{ env.ENVIRONMENT }}/regional-${{ matrix.region }}-terraform.tfstate" \
             -backend-config="region=${{ matrix.region }}"
           terraform apply \
             -auto-approve \
