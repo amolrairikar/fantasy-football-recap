@@ -608,7 +608,7 @@ module "api-gateway-role" {
 
 module "sleeper-player-stats-orchestrator-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "fantasy-football-recap-sleeper-player-stats-orchestrator-lambda-${var.environment}-role"
+  role_name = "fantasy-football-recap-slp-stats-orchestrator-lambda-${var.environment}-role"
   role_description = "Execution role for Sleeper player stats orchestrator lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -685,7 +685,7 @@ module "sleeper-player-stats-orchestrator-lambda-role" {
 
 module "sleeper-player-stats-processor-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "fantasy-football-recap-sleeper-player-stats-processor-lambda-${var.environment}-role"
+  role_name = "fantasy-football-recap-slp-stats-processor-lambda-${var.environment}-role"
   role_description = "Execution role for Sleeper player stats processor lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -774,7 +774,7 @@ module "sleeper-player-stats-processor-lambda-role" {
 
 module "sleeper-player-stats-aggregator-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "fantasy-football-recap-sleeper-player-stats-aggregator-lambda-${var.environment}-role"
+  role_name = "fantasy-football-recap-slp-stats-aggregator-lambda-${var.environment}-role"
   role_description = "Execution role for Sleeper player stats aggregator lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
