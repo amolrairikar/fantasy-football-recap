@@ -187,8 +187,7 @@ jobs:
             -var="sleeper_player_stats_processor_lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/fantasy-football-recap-slp-stats-processor-lambda-${{ env.ENVIRONMENT }}-role" \
             -var="sleeper_player_stats_aggregator_lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/fantasy-football-recap-slp-stats-aggregator-lambda-${{ env.ENVIRONMENT }}-role" \
             -var="clerk_issuer_url=${{ env.CLERK_ISSUER_URL }}" \
-            -var="clerk_jwt_audience=${{ secrets.CLERK_JWT_AUDIENCE }}" \
-            -var="anthropic_api_key=${{ secrets.ANTHROPIC_API_KEY }}"
+            -var="clerk_jwt_audience=${{ secrets.CLERK_JWT_AUDIENCE }}"
 
   # live-dependency-tests:
   #   name: Live Dependency Tests

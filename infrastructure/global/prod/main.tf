@@ -18,8 +18,8 @@ provider "aws" {
 }
 
 locals {
-  primary_bucket_arn   = "arn:aws:s3:::fantasy-football-recap-${var.environment}-bucket-east-${var.account_id}"
-  secondary_bucket_arn = "arn:aws:s3:::fantasy-football-recap-${var.environment}-bucket-west-${var.account_id}"
+  primary_bucket_arn   = "arn:aws:s3:::leagueql-${var.environment}-bucket-east-${var.account_id}"
+  secondary_bucket_arn = "arn:aws:s3:::leagueql-${var.environment}-bucket-west-${var.account_id}"
 }
 
 module "dynamodb" {
@@ -30,14 +30,14 @@ module "dynamodb" {
     aws.replica = aws.replica
   }
 
-  table_name      = "fantasy-football-recap-table-${var.environment}"
+  table_name      = "leagueql-table-${var.environment}"
   hash_key        = "PK"
   range_key       = "SK"
   replica_regions = ["us-west-2"]
   
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "database"
     managed-by  = "terraform"
   }
@@ -45,8 +45,8 @@ module "dynamodb" {
 
 module "s3-replication-role" {
   source = "../../modules/iam-role"
-  role_name = "fantasy-football-recap-s3-${var.environment}-replication-role"
-  role_description = "IAM role for replicating objects between east & west Fantasy Football Recap project dev S3 buckets."
+  role_name = "leagueql-s3-${var.environment}-replication-role"
+  role_description = "IAM role for replicating objects between east & west Fantasy Football Recap project S3 buckets."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -95,7 +95,7 @@ module "s3-replication-role" {
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "s3"
     managed-by  = "terraform"
   }
@@ -109,7 +109,7 @@ module "s3-bidirectional-replication" {
     aws.replica = aws.replica
   }
 
-  bucket_prefix        = "fantasy-football-recap-${var.environment}-bucket"
+  bucket_prefix        = "leagueql-${var.environment}-bucket"
   account_id           = var.account_id
   primary_aws_region   = "us-east-1"
   secondary_aws_region = "us-west-2"
@@ -120,31 +120,31 @@ module "s3-bidirectional-replication" {
     {
       rule_name       = "expire-noncurrent-objects"
       prefix          = "lambda-code-artifacts/"
-      noncurrent_days = 7
+      noncurrent_days = 2
     },
     {
       rule_name       = "expire-noncurrent-api-data"
       prefix          = "raw-api-data/"
-      noncurrent_days = 7
+      noncurrent_days = 2
     }
   ]
 
   primary_event_notifications = [
-    {
-      lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-processor-${var.environment}-east"
-      events              = ["s3:ObjectCreated:*"]
-      filter_prefix       = "raw-api-data/"
-      filter_suffix       = "manifest.json"
-    },
+    # {
+    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-processor-${var.environment}-east"
+    #   events              = ["s3:ObjectCreated:*"]
+    #   filter_prefix       = "raw-api-data/"
+    #   filter_suffix       = "manifest.json"
+    # },
     # TODO: uncomment once sleeper-player-stats lambdas are deployed
     # {
-    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-slp-stats-orchestrator-${var.environment}-east"
+    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-slp-stats-orchestrator-${var.environment}-east"
     #   events              = ["s3:ObjectCreated:Put"]
     #   filter_prefix       = "player-metadata/"
     #   filter_suffix       = "sleeper_nfl_players.json"
     # },
     # {
-    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-slp-stats-aggregator-${var.environment}-east"
+    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-slp-stats-aggregator-${var.environment}-east"
     #   events              = ["s3:ObjectCreated:Put"]
     #   filter_prefix       = "player-stats/staging/"
     #   filter_suffix       = "complete.json"
@@ -153,7 +153,7 @@ module "s3-bidirectional-replication" {
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "s3"
     managed-by  = "terraform"
   }
@@ -161,7 +161,7 @@ module "s3-bidirectional-replication" {
 
 module "onboarding-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "fantasy-football-recap-onboarding-lambda-${var.environment}-role"
+  role_name = "leagueql-onboarder-role"
   role_description = "Execution role for onboarding lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -196,7 +196,7 @@ module "onboarding-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-onboarder-${var.environment}-east:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-onboarder:*"
         ]
       },
       {
@@ -248,15 +248,15 @@ module "onboarding-lambda-role" {
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
-    component   = "api"
+    project     = "leagueql"
+    component   = "data-processing"
     managed-by  = "terraform"
   }
 }
 
 module "processing-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "fantasy-football-recap-processing-lambda-${var.environment}-role"
+  role_name = "leagueql-onboarding-processor-role"
   role_description = "Execution role for data processing lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -291,7 +291,7 @@ module "processing-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-processor-${var.environment}-east:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-onboarding-processor:*"
         ]
       },
       {
@@ -354,16 +354,16 @@ module "processing-lambda-role" {
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
-    component   = "api"
+    project     = "leagueql"
+    component   = "data-processing"
     managed-by  = "terraform"
   }
 }
 
 module "player-metadata-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "fantasy-football-recap-player-metadata-lambda-${var.environment}-role"
-  role_description = "Execution role for player metadata lambda."
+  role_name = "leagueql-sleeper-player-metadata-fetcher-role"
+  role_description = "Execution role for Sleeper player data fetcher lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -397,7 +397,7 @@ module "player-metadata-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-player-metadata-${var.environment}-east:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-sleeper-player-metadata-fetcher:*"
         ]
       },
       {
@@ -416,15 +416,15 @@ module "player-metadata-lambda-role" {
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
-    component   = "api"
+    project     = "leagueql"
+    component   = "data-processing"
     managed-by  = "terraform"
   }
 }
 
 module "api-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "fantasy-football-recap-api-lambda-${var.environment}-role"
+  role_name = "leagueql-${var.environment}-api-role"
   role_description = "Execution role for API lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -460,8 +460,8 @@ module "api-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-api-${var.environment}-east:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-api-${var.environment}-west:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-api-${var.environment}-east:*",
+          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/leagueql-api-${var.environment}-west:*"
         ]
       },
       {
@@ -492,7 +492,7 @@ module "api-lambda-role" {
           "lambda:InvokeFunction"
         ]
         Resource = [
-          "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-onboarder-${var.environment}-east"
+          "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-${var.environment}-onboarder-east"
         ]
       },
       {
@@ -518,7 +518,7 @@ module "api-lambda-role" {
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
@@ -526,7 +526,7 @@ module "api-lambda-role" {
 
 module "api-gateway-role" {
   source = "../../modules/iam-role"
-  role_name = "fantasy-football-recap-api-gateway-${var.environment}-role"
+  role_name = "leagueql-api-gateway-${var.environment}-role"
   role_description = "Role for API Gateway to write logs to Cloudwatch."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -566,8 +566,8 @@ module "api-gateway-role" {
           "logs:DescribeLogStreams"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/apigateway/fantasy-football-recap-api-${var.environment}-east:*",
-          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/apigateway/fantasy-football-recap-api-${var.environment}-west:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/apigateway/leagueql-api-${var.environment}-east:*",
+          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/apigateway/leagueql-api-${var.environment}-west:*"
         ]
       }
     ]
@@ -575,7 +575,7 @@ module "api-gateway-role" {
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
@@ -583,7 +583,7 @@ module "api-gateway-role" {
 
 module "sleeper-player-stats-orchestrator-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "fantasy-football-recap-slp-stats-orchestrator-lambda-${var.environment}-role"
+  role_name = "leagueql-sleeper-player-stats-orchestrator-role"
   role_description = "Execution role for Sleeper player stats orchestrator lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -618,7 +618,7 @@ module "sleeper-player-stats-orchestrator-lambda-role" {
           "logs:PutLogEvents"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-orchestrator-${var.environment}-east:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-sleeper-player-stats-orchestrator:*"
         ]
       },
       {
@@ -648,15 +648,15 @@ module "sleeper-player-stats-orchestrator-lambda-role" {
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
-    component   = "api"
+    project     = "leagueql"
+    component   = "data-processing"
     managed-by  = "terraform"
   }
 }
 
 module "sleeper-player-stats-processor-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "fantasy-football-recap-slp-stats-processor-lambda-${var.environment}-role"
+  role_name = "leagueql-sleeper-player-stats-processor-role"
   role_description = "Execution role for Sleeper player stats processor lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -691,7 +691,7 @@ module "sleeper-player-stats-processor-lambda-role" {
           "logs:PutLogEvents"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-processor-${var.environment}-east:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-sleeper-player-stats-processor:*"
         ]
       },
       {
@@ -732,15 +732,15 @@ module "sleeper-player-stats-processor-lambda-role" {
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
-    component   = "api"
+    project     = "leagueql"
+    component   = "data-processing"
     managed-by  = "terraform"
   }
 }
 
 module "sleeper-player-stats-aggregator-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "fantasy-football-recap-slp-stats-aggregator-lambda-${var.environment}-role"
+  role_name = "leagueql-sleeper-player-stats-aggregator-role"
   role_description = "Execution role for Sleeper player stats aggregator lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -775,7 +775,7 @@ module "sleeper-player-stats-aggregator-lambda-role" {
           "logs:PutLogEvents"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-slp-stats-aggregator-${var.environment}-east:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-sleeper-player-stats-aggregator:*"
         ]
       },
       {
@@ -814,15 +814,15 @@ module "sleeper-player-stats-aggregator-lambda-role" {
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
-    component   = "api"
+    project     = "leagueql"
+    component   = "data-processing"
     managed-by  = "terraform"
   }
 }
 
 module "sleeper-refresh-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "fantasy-football-recap-sleeper-refresh-lambda-${var.environment}-role"
+  role_name = "leagueql-sleeper-league-refresh-role"
   role_description = "Execution role for Sleeper refresh lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -857,7 +857,7 @@ module "sleeper-refresh-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-refresh-${var.environment}-east:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-sleeper-league-refresh:*"
         ]
       },
       {
@@ -878,7 +878,7 @@ module "sleeper-refresh-lambda-role" {
           "lambda:InvokeFunction"
         ]
         Resource = [
-          "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-onboarder-${var.environment}-east"
+          "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-${var.environment}-onboarder"
         ]
       }
     ]
@@ -886,8 +886,8 @@ module "sleeper-refresh-lambda-role" {
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
-    component   = "api"
+    project     = "leagueql"
+    component   = "data-processing"
     managed-by  = "terraform"
   }
 }

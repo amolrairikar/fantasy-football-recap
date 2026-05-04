@@ -46,5 +46,5 @@ resource "aws_lambda_function" "this" {
   }
 
   tags       = var.tags
-  depends_on = aws_cloudwatch_log_group.lambda_log_group
+  depends_on = [aws_cloudwatch_log_group.lambda_log_group]
 }

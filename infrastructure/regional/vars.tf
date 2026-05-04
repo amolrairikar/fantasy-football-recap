@@ -33,12 +33,6 @@ variable "clerk_jwt_audience" {
   type        = string
 }
 
-variable "anthropic_api_key" {
-  description = "Anthropic API key for AI recap generation in the processor Lambda"
-  type        = string
-  sensitive   = true
-}
-
 variable "player_metadata_lambda_role_arn" {
   description = "IAM role ARN for the player metadata Lambda function execution role"
   type        = string
