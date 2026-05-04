@@ -86,12 +86,12 @@ export const FEATURES: Feature[] = [
   {
     icon: '🏆',
     title: 'Championship Timeline',
-    desc: 'A visual hall of fame showing every champion, runner-up, and consolation bracket winner across all seasons.',
+    desc: 'A visual hall of fame showing every champion across all seasons.',
   },
   {
     icon: '📈',
-    title: 'Scoring Trends',
-    desc: 'Chart how your team — and the league — has evolved over the years, week by week and season over season.',
+    title: 'Team Trends',
+    desc: 'Chart how your team rankings have fluctuated throughout the years.',
   },
   {
     icon: '🔖',
@@ -101,7 +101,7 @@ export const FEATURES: Feature[] = [
   {
     icon: '🔗',
     title: 'Instant Sync',
-    desc: 'Connect your ESPN or Sleeper league in seconds. Full history imports automatically — no manual entry needed.',
+    desc: 'Connect your ESPN or Sleeper league instantly. Full history imports — no manual entry needed.',
   },
 ];
 

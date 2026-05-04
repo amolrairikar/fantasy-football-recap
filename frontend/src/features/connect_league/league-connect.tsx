@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   type FieldErrors,
   Controller,
@@ -84,6 +84,9 @@ export default function LeagueConnect() {
   const [pollStatus, setPollStatus] = useState<'idle' | 'success' | 'failed'>(
     'idle',
   );
+  const [loadingMessage, setLoadingMessage] = useState('');
+  const loadingStartRef = useRef<number | null>(null);
+  const loadingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const {
     control,
@@ -101,6 +104,35 @@ export default function LeagueConnect() {
 
   const platform = useWatch({ control, name: 'platform' });
   const espnErrors = errors as FieldErrors<EspnFormValues>;
+
+  useEffect(() => {
+    if (isSubmitting) {
+      loadingStartRef.current = Date.now();
+      setLoadingMessage("Fetching your league's data");
+      loadingIntervalRef.current = setInterval(() => {
+        const elapsed = (Date.now() - loadingStartRef.current!) / 1000;
+        if (elapsed < 10) {
+          setLoadingMessage("Fetching your league's data");
+        } else if (elapsed < 25) {
+          setLoadingMessage('Calculating');
+        } else {
+          setLoadingMessage('Creating your league dashboard');
+        }
+      }, 500);
+    } else {
+      if (loadingIntervalRef.current) {
+        clearInterval(loadingIntervalRef.current);
+        loadingIntervalRef.current = null;
+      }
+      loadingStartRef.current = null;
+      setLoadingMessage('');
+    }
+    return () => {
+      if (loadingIntervalRef.current) {
+        clearInterval(loadingIntervalRef.current);
+      }
+    };
+  }, [isSubmitting]);
 
   const onSubmit = async (data: LeagueConnectFormValues) => {
     setPollStatus('idle');
@@ -281,7 +313,10 @@ export default function LeagueConnect() {
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 cursor-pointer"
               >
                 {isSubmitting ? (
-                  <Spinner className="text-primary-foreground" />
+                  <span className="flex items-center gap-2">
+                    <Spinner className="text-primary-foreground" />
+                    {loadingMessage}
+                  </span>
                 ) : (
                   'Connect'
                 )}
