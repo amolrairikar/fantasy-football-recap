@@ -295,7 +295,7 @@ module "sleeper_player_stats_processor_lambda" {
   memory_size                     = 256
   timeout                         = 60
   log_retention                   = 7
-  reserved_concurrent_executions  = 8
+  reserved_concurrent_executions  = local.region == "east" ? 8 : -1
   s3_bucket                       = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key                          = "lambda-code-artifacts/sleeper_player_stats_processor-lambda.zip"
 
