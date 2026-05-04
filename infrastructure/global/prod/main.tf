@@ -136,18 +136,19 @@ module "s3-bidirectional-replication" {
       filter_prefix       = "raw-api-data/"
       filter_suffix       = "manifest.json"
     },
-    {
-      lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-sleeper-player-stats-orchestrator-${var.environment}-east"
-      events              = ["s3:ObjectCreated:Put"]
-      filter_prefix       = "player-metadata/"
-      filter_suffix       = "sleeper_nfl_players.json"
-    },
-    {
-      lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-sleeper-player-stats-aggregator-${var.environment}-east"
-      events              = ["s3:ObjectCreated:Put"]
-      filter_prefix       = "player-stats/staging/"
-      filter_suffix       = "complete.json"
-    }
+    # TODO: uncomment once sleeper-player-stats lambdas are deployed
+    # {
+    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-sleeper-player-stats-orchestrator-${var.environment}-east"
+    #   events              = ["s3:ObjectCreated:Put"]
+    #   filter_prefix       = "player-metadata/"
+    #   filter_suffix       = "sleeper_nfl_players.json"
+    # },
+    # {
+    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-sleeper-player-stats-aggregator-${var.environment}-east"
+    #   events              = ["s3:ObjectCreated:Put"]
+    #   filter_prefix       = "player-stats/staging/"
+    #   filter_suffix       = "complete.json"
+    # }
   ]
 
   secondary_event_notifications = [
