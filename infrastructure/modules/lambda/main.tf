@@ -1,11 +1,5 @@
-# Check if log group already exists
-data "aws_cloudwatch_log_group" "existing" {
-  name = "/aws/lambda/${var.function_name}"
-}
-
-# Create the log group only if it doesn't exist
+# Create the CloudWatch log group
 resource "aws_cloudwatch_log_group" "lambda_log_group" {
-  count             = data.aws_cloudwatch_log_group.existing.name == null ? 1 : 0
   name              = "/aws/lambda/${var.function_name}"
   retention_in_days = var.log_retention
   tags              = var.tags
