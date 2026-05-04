@@ -48,3 +48,18 @@ variable "sleeper_refresh_lambda_role_arn" {
   description = "IAM role ARN for the Sleeper refresh Lambda function execution role"
   type        = string
 }
+
+variable "sleeper_player_stats_orchestrator_lambda_role_arn" {
+  description = "IAM role ARN for the Sleeper player stats orchestrator Lambda function execution role"
+  type        = string
+}
+
+variable "sleeper_player_stats_processor_lambda_role_arn" {
+  description = "IAM role ARN for the Sleeper player stats processor Lambda function execution role"
+  type        = string
+}
+
+variable "sleeper_player_stats_aggregator_lambda_role_arn" {
+  description = "IAM role ARN for the Sleeper player stats aggregator Lambda function execution role"
+  type        = string
+}

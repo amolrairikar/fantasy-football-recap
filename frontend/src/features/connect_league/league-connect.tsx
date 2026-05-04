@@ -32,7 +32,7 @@ import {
   type LeagueConnectFormValues,
   leagueConnectSchema,
 } from '@/features/connect_league/league-connect-schema';
-import { clearEspnCookies, readCookie, setLeagueCookies } from '@/lib/cookie-handler';
+import { clearEspnCookies, setLeagueCookies } from '@/lib/cookie-handler';
 import { ApiError, clearApiError } from '@/lib/api-client';
 
 const API_PLATFORM = { espn: 'ESPN', sleeper: 'SLEEPER' } as const;
@@ -97,8 +97,6 @@ export default function LeagueConnect() {
     resolver: zodResolver(leagueConnectSchema),
     defaultValues: {
       platform: 'espn',
-      swid: readCookie('SWID'),
-      espnS2: readCookie('espn_s2'),
     },
   });
 
