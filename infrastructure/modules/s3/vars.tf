@@ -45,12 +45,24 @@ variable "replication_role_arn" {
   type        = string
 }
 
-variable "primary_lambda" {
-  description = "The name of the lambda function in the primary region (us-east-1)"
-  type        = string
+variable "primary_event_notifications" {
+  description = "List of event notification configurations for the primary bucket"
+  type = list(object({
+    lambda_function_arn = string
+    events              = list(string)
+    filter_prefix       = optional(string)
+    filter_suffix       = optional(string)
+  }))
+  default = []
 }
 
-variable "secondary_lambda" {
-  description = "The name of the lambda function in the secondary region (us-west-2)"
-  type        = string
+variable "secondary_event_notifications" {
+  description = "List of event notification configurations for the secondary bucket"
+  type = list(object({
+    lambda_function_arn = string
+    events              = list(string)
+    filter_prefix       = optional(string)
+    filter_suffix       = optional(string)
+  }))
+  default = []
 }

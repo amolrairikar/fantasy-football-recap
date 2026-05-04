@@ -10,6 +10,16 @@ terraform {
 locals {
   primary_region = element(split("-", var.primary_aws_region), 1)
   secondary_region = element(split("-", var.secondary_aws_region), 1)
+
+  primary_lambda_names = distinct([
+    for notification in var.primary_event_notifications :
+    element(split(":", notification.lambda_function_arn), length(split(":", notification.lambda_function_arn)) - 1)
+  ])
+
+  secondary_lambda_names = distinct([
+    for notification in var.secondary_event_notifications :
+    element(split(":", notification.lambda_function_arn), length(split(":", notification.lambda_function_arn)) - 1)
+  ])
 }
 
 resource "aws_s3_bucket" "primary" {
@@ -53,10 +63,12 @@ resource "aws_s3_bucket_lifecycle_configuration" "primary" {
 }
 
 resource "aws_lambda_permission" "allow_primary_s3" {
+  for_each = toset(local.primary_lambda_names)
+
   provider      = aws.primary
-  statement_id  = "AllowS3InvokePrimary"
+  statement_id  = "AllowS3InvokePrimary-${each.value}"
   action        = "lambda:InvokeFunction"
-  function_name = var.primary_lambda
+  function_name = each.value
   principal     = "s3.amazonaws.com"
   source_arn    = aws_s3_bucket.primary.arn
 }
@@ -65,11 +77,14 @@ resource "aws_s3_bucket_notification" "primary_notification" {
   provider = aws.primary
   bucket   = aws_s3_bucket.primary.id
 
-  lambda_function {
-    lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:${var.primary_lambda}"
-    events              = ["s3:ObjectCreated:*"]
-    filter_prefix       = "raw-api-data/"
-    filter_suffix       = "manifest.json"
+  dynamic "lambda_function" {
+    for_each = var.primary_event_notifications
+    content {
+      lambda_function_arn = lambda_function.value.lambda_function_arn
+      events              = lambda_function.value.events
+      filter_prefix       = lambda_function.value.filter_prefix
+      filter_suffix       = lambda_function.value.filter_suffix
+    }
   }
 
   depends_on = [aws_lambda_permission.allow_primary_s3]
@@ -175,10 +190,12 @@ resource "aws_s3_bucket_replication_configuration" "secondary_to_primary" {
 }
 
 resource "aws_lambda_permission" "allow_secondary_s3" {
+  for_each = toset(local.secondary_lambda_names)
+
   provider      = aws.replica
-  statement_id  = "AllowS3InvokeSecondary"
+  statement_id  = "AllowS3InvokeSecondary-${each.value}"
   action        = "lambda:InvokeFunction"
-  function_name = var.secondary_lambda
+  function_name = each.value
   principal     = "s3.amazonaws.com"
   source_arn    = aws_s3_bucket.secondary.arn
 }
@@ -187,11 +204,14 @@ resource "aws_s3_bucket_notification" "secondary_notification" {
   provider = aws.replica
   bucket   = aws_s3_bucket.secondary.id
 
-  lambda_function {
-    lambda_function_arn = "arn:aws:lambda:us-west-2:${var.account_id}:function:${var.secondary_lambda}"
-    events              = ["s3:ObjectCreated:*"]
-    filter_prefix       = "raw-api-data/"
-    filter_suffix       = "manifest.json"
+  dynamic "lambda_function" {
+    for_each = var.secondary_event_notifications
+    content {
+      lambda_function_arn = lambda_function.value.lambda_function_arn
+      events              = lambda_function.value.events
+      filter_prefix       = lambda_function.value.filter_prefix
+      filter_suffix       = lambda_function.value.filter_suffix
+    }
   }
 
   depends_on = [aws_lambda_permission.allow_secondary_s3]
