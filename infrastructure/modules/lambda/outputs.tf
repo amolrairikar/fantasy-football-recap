@@ -10,5 +10,5 @@ output "lambda_invoke_arn" {
 
 output "log_group_name" {
   description = "The name of the Cloudwatch Log Group"
-  value       = aws_cloudwatch_log_group.lambda_log_group.name
+  value       = aws_cloudwatch_log_group.lambda_log_group[0].name
 }
