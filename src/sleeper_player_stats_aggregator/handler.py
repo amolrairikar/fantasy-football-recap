@@ -1,4 +1,4 @@
-# noqa: D100
+# Handler for sleeper player stats aggregator lambda.
 import json
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed

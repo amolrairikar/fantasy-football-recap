@@ -1,4 +1,4 @@
-# noqa: D100
+# Handler for sleeper player stats orchestrator lambda.
 import json
 import os
 import boto3
