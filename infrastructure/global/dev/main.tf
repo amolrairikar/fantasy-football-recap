@@ -135,6 +135,18 @@ module "s3-bidirectional-replication" {
       events              = ["s3:ObjectCreated:*"]
       filter_prefix       = "raw-api-data/"
       filter_suffix       = "manifest.json"
+    },
+    {
+      lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-sleeper-player-stats-orchestrator-${var.environment}-east"
+      events              = ["s3:ObjectCreated:Put"]
+      filter_prefix       = "player-metadata/"
+      filter_suffix       = "sleeper_nfl_players.json"
+    },
+    {
+      lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-sleeper-player-stats-aggregator-${var.environment}-east"
+      events              = ["s3:ObjectCreated:Put"]
+      filter_prefix       = "player-stats/staging/"
+      filter_suffix       = "complete.json"
     }
   ]
 
@@ -581,6 +593,259 @@ module "api-gateway-role" {
         Resource = [
           "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/apigateway/fantasy-football-recap-api-${var.environment}-east:*",
           "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/apigateway/fantasy-football-recap-api-${var.environment}-west:*"
+        ]
+      }
+    ]
+  })
+
+  tags = {
+    environment = var.environment
+    project     = "fantasy-football-recap"
+    component   = "api"
+    managed-by  = "terraform"
+  }
+}
+
+module "sleeper-player-stats-orchestrator-lambda-role" {
+  source = "../../modules/iam-role"
+  role_name = "fantasy-football-recap-sleeper-player-stats-orchestrator-lambda-${var.environment}-role"
+  role_description = "Execution role for Sleeper player stats orchestrator lambda."
+  trust_policy_json = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+  role_policy_json = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "CreateLogGroups"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup"
+        ]
+        Resource = [
+          "arn:aws:logs:us-east-1:${var.account_id}:*",
+          "arn:aws:logs:us-west-2:${var.account_id}:*"
+        ]
+      },
+      {
+        Sid    = "CreateLogEvents"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = [
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-player-stats-orchestrator-${var.environment}-east:*",
+          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-player-stats-orchestrator-${var.environment}-west:*"
+        ]
+      },
+      {
+        Sid    = "ReadPlayerMetadata"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = [
+          "${local.primary_bucket_arn}/player-metadata/*",
+          "${local.secondary_bucket_arn}/player-metadata/*"
+        ]
+      },
+      {
+        Sid    = "SendSQSMessages"
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage",
+          "sqs:SendMessageBatch",
+          "sqs:GetQueueUrl"
+        ]
+        Resource = [
+          "arn:aws:sqs:us-east-1:${var.account_id}:sleeper-player-stats-processor-${var.environment}-east",
+          "arn:aws:sqs:us-west-2:${var.account_id}:sleeper-player-stats-processor-${var.environment}-west"
+        ]
+      }
+    ]
+  })
+
+  tags = {
+    environment = var.environment
+    project     = "fantasy-football-recap"
+    component   = "api"
+    managed-by  = "terraform"
+  }
+}
+
+module "sleeper-player-stats-processor-lambda-role" {
+  source = "../../modules/iam-role"
+  role_name = "fantasy-football-recap-sleeper-player-stats-processor-lambda-${var.environment}-role"
+  role_description = "Execution role for Sleeper player stats processor lambda."
+  trust_policy_json = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+  role_policy_json = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "CreateLogGroups"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup"
+        ]
+        Resource = [
+          "arn:aws:logs:us-east-1:${var.account_id}:*",
+          "arn:aws:logs:us-west-2:${var.account_id}:*"
+        ]
+      },
+      {
+        Sid    = "CreateLogEvents"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = [
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-player-stats-processor-${var.environment}-east:*",
+          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-player-stats-processor-${var.environment}-west:*"
+        ]
+      },
+      {
+        Sid    = "WriteStagingFiles"
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject"
+        ]
+        Resource = [
+          "${local.primary_bucket_arn}/player-stats/staging/*",
+          "${local.secondary_bucket_arn}/player-stats/staging/*"
+        ]
+      },
+      {
+        Sid    = "ReadCompleteSentinel"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = [
+          "${local.primary_bucket_arn}/player-stats/staging/complete.json",
+          "${local.secondary_bucket_arn}/player-stats/staging/complete.json"
+        ]
+      },
+      {
+        Sid    = "SQSConsume"
+        Effect = "Allow"
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl"
+        ]
+        Resource = [
+          "arn:aws:sqs:us-east-1:${var.account_id}:sleeper-player-stats-processor-${var.environment}-east",
+          "arn:aws:sqs:us-west-2:${var.account_id}:sleeper-player-stats-processor-${var.environment}-west"
+        ]
+      }
+    ]
+  })
+
+  tags = {
+    environment = var.environment
+    project     = "fantasy-football-recap"
+    component   = "api"
+    managed-by  = "terraform"
+  }
+}
+
+module "sleeper-player-stats-aggregator-lambda-role" {
+  source = "../../modules/iam-role"
+  role_name = "fantasy-football-recap-sleeper-player-stats-aggregator-lambda-${var.environment}-role"
+  role_description = "Execution role for Sleeper player stats aggregator lambda."
+  trust_policy_json = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+  role_policy_json = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "CreateLogGroups"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup"
+        ]
+        Resource = [
+          "arn:aws:logs:us-east-1:${var.account_id}:*",
+          "arn:aws:logs:us-west-2:${var.account_id}:*"
+        ]
+      },
+      {
+        Sid    = "CreateLogEvents"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = [
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-player-stats-aggregator-${var.environment}-east:*",
+          "arn:aws:logs:us-west-2:${var.account_id}:log-group:/aws/lambda/fantasy-football-recap-sleeper-player-stats-aggregator-${var.environment}-west:*"
+        ]
+      },
+      {
+        Sid    = "ListStagingBucket"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = [
+          local.primary_bucket_arn,
+          local.secondary_bucket_arn
+        ]
+      },
+      {
+        Sid    = "ReadDeleteStagingFiles"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          "${local.primary_bucket_arn}/player-stats/staging/*",
+          "${local.secondary_bucket_arn}/player-stats/staging/*"
+        ]
+      },
+      {
+        Sid    = "WriteFinalStats"
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject"
+        ]
+        Resource = [
+          "${local.primary_bucket_arn}/player-stats/sleeper_nfl_player_stats.json",
+          "${local.secondary_bucket_arn}/player-stats/sleeper_nfl_player_stats.json"
         ]
       }
     ]

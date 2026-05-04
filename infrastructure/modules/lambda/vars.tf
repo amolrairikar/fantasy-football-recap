@@ -59,6 +59,12 @@ variable "log_retention" {
   default     = 14
 }
 
+variable "reserved_concurrent_executions" {
+  type        = number
+  description = "Reserved concurrency (-1 = unreserved)"
+  default     = -1
+}
+
 variable "tags" {
   type        = map(string)
   description = "A mapping of tags to assign to the object"

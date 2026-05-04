@@ -229,6 +229,122 @@ module "backend_api" {
   }
 }
 
+resource "aws_sqs_queue" "sleeper_player_stats_dlq" {
+  name                      = "sleeper-player-stats-processor-dlq-${var.environment}-${local.region}"
+  message_retention_seconds = 1209600
+
+  tags = {
+    environment = var.environment
+    project     = "fantasy-football-recap"
+    component   = "api"
+    managed-by  = "terraform"
+  }
+}
+
+resource "aws_sqs_queue" "sleeper_player_stats_queue" {
+  name                       = "sleeper-player-stats-processor-${var.environment}-${local.region}"
+  visibility_timeout_seconds = 120
+  message_retention_seconds  = 86400
+  receive_wait_time_seconds  = 20
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.sleeper_player_stats_dlq.arn
+    maxReceiveCount     = 3
+  })
+
+  tags = {
+    environment = var.environment
+    project     = "fantasy-football-recap"
+    component   = "api"
+    managed-by  = "terraform"
+  }
+}
+
+module "sleeper_player_stats_orchestrator_lambda" {
+  source = "../modules/lambda"
+
+  function_name        = "fantasy-football-recap-sleeper-player-stats-orchestrator-${var.environment}-${local.region}"
+  function_description = "Reads active players from S3 and enqueues per-player stats fetch messages to SQS"
+  role_arn             = var.sleeper_player_stats_orchestrator_lambda_role_arn
+  handler              = "handler.lambda_handler"
+  memory_size          = 512
+  timeout              = 300
+  log_retention        = 7
+  s3_bucket            = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+  s3_key               = "lambda-code-artifacts/sleeper_player_stats_orchestrator-lambda.zip"
+
+  environment_variables = {
+    S3_BUCKET_NAME = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+    SQS_QUEUE_URL  = aws_sqs_queue.sleeper_player_stats_queue.url
+  }
+
+  tags = {
+    environment = var.environment
+    project     = "fantasy-football-recap"
+    component   = "api"
+    managed-by  = "terraform"
+  }
+}
+
+module "sleeper_player_stats_processor_lambda" {
+  source = "../modules/lambda"
+
+  function_name                   = "fantasy-football-recap-sleeper-player-stats-processor-${var.environment}-${local.region}"
+  function_description            = "Fetches stats for one player per SQS message and writes to S3 staging"
+  role_arn                        = var.sleeper_player_stats_processor_lambda_role_arn
+  handler                         = "handler.lambda_handler"
+  memory_size                     = 256
+  timeout                         = 60
+  log_retention                   = 7
+  reserved_concurrent_executions  = 8
+  s3_bucket                       = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+  s3_key                          = "lambda-code-artifacts/sleeper_player_stats_processor-lambda.zip"
+
+  environment_variables = {
+    S3_BUCKET_NAME = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+    SQS_QUEUE_URL  = aws_sqs_queue.sleeper_player_stats_queue.url
+  }
+
+  tags = {
+    environment = var.environment
+    project     = "fantasy-football-recap"
+    component   = "api"
+    managed-by  = "terraform"
+  }
+}
+
+module "sleeper_player_stats_aggregator_lambda" {
+  source = "../modules/lambda"
+
+  function_name        = "fantasy-football-recap-sleeper-player-stats-aggregator-${var.environment}-${local.region}"
+  function_description = "Merges all staging player stats files into the final JSON and cleans up staging"
+  role_arn             = var.sleeper_player_stats_aggregator_lambda_role_arn
+  handler              = "handler.lambda_handler"
+  memory_size          = 1024
+  timeout              = 300
+  log_retention        = 7
+  s3_bucket            = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+  s3_key               = "lambda-code-artifacts/sleeper_player_stats_aggregator-lambda.zip"
+
+  environment_variables = {
+    S3_BUCKET_NAME = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+  }
+
+  tags = {
+    environment = var.environment
+    project     = "fantasy-football-recap"
+    component   = "api"
+    managed-by  = "terraform"
+  }
+}
+
+resource "aws_lambda_event_source_mapping" "sleeper_player_stats_processor_sqs" {
+  event_source_arn                   = aws_sqs_queue.sleeper_player_stats_queue.arn
+  function_name                      = module.sleeper_player_stats_processor_lambda.lambda_arn
+  batch_size                         = 1
+  maximum_batching_window_in_seconds = 0
+  enabled                            = local.region == "east" ? true : false
+}
+
 resource "aws_cloudwatch_log_resource_policy" "apigateway_log_delivery" {
   policy_name = "api-gateway-log-delivery-${var.environment}"
 
