@@ -113,10 +113,8 @@ module "s3-bidirectional-replication" {
   account_id           = var.account_id
   primary_aws_region   = "us-east-1"
   secondary_aws_region = "us-west-2"
-  versioning_enabled   = true  
+  versioning_enabled   = true
   replication_role_arn = module.s3-replication-role.role_arn
-  primary_lambda       = "fantasy-football-recap-processor-${var.environment}-east"
-  secondary_lambda     = "fantasy-football-recap-processor-${var.environment}-west"
 
   lifecycle_rules = [
     {
@@ -128,6 +126,24 @@ module "s3-bidirectional-replication" {
       rule_name       = "expire-noncurrent-api-data"
       prefix          = "raw-api-data/"
       noncurrent_days = 7
+    }
+  ]
+
+  primary_event_notifications = [
+    {
+      lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:fantasy-football-recap-processor-${var.environment}-east"
+      events              = ["s3:ObjectCreated:*"]
+      filter_prefix       = "raw-api-data/"
+      filter_suffix       = "manifest.json"
+    }
+  ]
+
+  secondary_event_notifications = [
+    {
+      lambda_function_arn = "arn:aws:lambda:us-west-2:${var.account_id}:function:fantasy-football-recap-processor-${var.environment}-west"
+      events              = ["s3:ObjectCreated:*"]
+      filter_prefix       = "raw-api-data/"
+      filter_suffix       = "manifest.json"
     }
   ]
 
