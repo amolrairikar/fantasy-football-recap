@@ -16,29 +16,40 @@ data "aws_caller_identity" "current" {}
 locals {
   region     = element(split("-", var.aws_region), 1)
   account_id = data.aws_caller_identity.current.account_id
+  
+  # Role ARNs constructed from global role names
+  onboarder_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-onboarder-role"
+  processor_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-onboarding-processor-role"
+  api_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-api-role"
+  player_metadata_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-sleeper-player-metadata-fetcher-role"
+  sleeper_refresh_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-sleeper-league-refresh-role"
+  sleeper_player_stats_orchestrator_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-sleeper-player-stats-orchestrator-role"
+  sleeper_player_stats_processor_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-sleeper-player-stats-processor-role"
+  sleeper_player_stats_aggregator_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-sleeper-player-stats-aggregator-role"
 }
 
 module "onboarder_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
-  function_name        = "fantasy-football-recap-onboarder-${var.environment}-${local.region}"
+  function_name        = "leagueql-onboarder-${var.environment}"
   function_description = "Lambda function for onboarding a fantasy football league"
-  role_arn             =  var.onboarder_lambda_role_arn
+  role_arn             = local.onboarder_role_arn
   handler              = "handler.lambda_handler"
   memory_size          = 2048
   timeout              = 30
   log_retention        = 7
-  s3_bucket            = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/onboarder-lambda.zip"
 
   environment_variables = {
-    DYNAMODB_TABLE_NAME = "fantasy-football-recap-table-${var.environment}"
-    S3_BUCKET_NAME      = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+    DYNAMODB_TABLE_NAME = "leagueql-table-${var.environment}"
+    S3_BUCKET_NAME      = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   }
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
@@ -46,26 +57,26 @@ module "onboarder_lambda" {
 
 module "processor_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
-  function_name        = "fantasy-football-recap-processor-${var.environment}-${local.region}"
+  function_name        = "leagueql-processor-${var.environment}"
   function_description = "Lambda function for processing raw fantasy football league data"
-  role_arn             =  var.processor_lambda_role_arn
+  role_arn             = local.processor_role_arn
   handler              = "handler.lambda_handler"
   memory_size          = 2048
   timeout              = 120
   log_retention        = 7
-  s3_bucket            = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/processor-lambda.zip"
 
   environment_variables = {
-    DYNAMODB_TABLE_NAME = "fantasy-football-recap-table-${var.environment}"
-    S3_BUCKET_NAME      = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
-    ANTHROPIC_API_KEY   = var.anthropic_api_key
+    DYNAMODB_TABLE_NAME = "leagueql-table-${var.environment}"
+    S3_BUCKET_NAME      = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   }
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
@@ -74,25 +85,25 @@ module "processor_lambda" {
 module "api_lambda" {
   source = "../modules/lambda"
 
-  function_name        = "fantasy-football-recap-api-${var.environment}-${local.region}"
+  function_name        = "leagueql-api-${var.environment}-${local.region}"
   function_description = "Lambda function containing API handler for fantasy football recap app"
-  role_arn             =  var.api_lambda_role_arn
+  role_arn             = local.api_role_arn
   handler              = "main.handler"
   memory_size          = 1024
   timeout              = 15
   log_retention        = 7
-  s3_bucket            = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/api-lambda.zip"
 
   environment_variables = {
-    DYNAMODB_TABLE_NAME   = "fantasy-football-recap-table-${var.environment}"
-    ONBOARDER_LAMBDA_NAME = "fantasy-football-recap-onboarder-${var.environment}-${local.region}"
-    S3_BUCKET_NAME        = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+    DYNAMODB_TABLE_NAME   = "leagueql-table-${var.environment}"
+    ONBOARDER_LAMBDA_NAME = "leagueql-onboarder-${var.environment}"
+    S3_BUCKET_NAME        = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   }
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
@@ -100,111 +111,119 @@ module "api_lambda" {
 
 module "player_metadata_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
-  function_name        = "fantasy-football-recap-player-metadata-${var.environment}-${local.region}"
+  function_name        = "leagueql-sleeper-player-metadata-${var.environment}"
   function_description = "Fetches and caches Sleeper NFL player metadata to S3"
-  role_arn             = var.player_metadata_lambda_role_arn
+  role_arn             = local.player_metadata_role_arn
   handler              = "handler.lambda_handler"
   memory_size          = 512
   timeout              = 30
   log_retention        = 7
-  s3_bucket            = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/player_metadata-lambda.zip"
 
   environment_variables = {
-    S3_BUCKET_NAME = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+    S3_BUCKET_NAME = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   }
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
 }
 
 resource "aws_cloudwatch_event_rule" "player_metadata_schedule" {
+  count               = local.region == "east" ? 1 : 0
   name                = "player-metadata-refresh-${var.environment}-${local.region}"
   schedule_expression = "cron(0 12 ? * TUE,THU *)"
-  state               = local.region == "east" ? "ENABLED" : "DISABLED"
+  state               = "ENABLED"
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
 }
 
 resource "aws_cloudwatch_event_target" "player_metadata_target" {
-  rule = aws_cloudwatch_event_rule.player_metadata_schedule.name
-  arn  = module.player_metadata_lambda.lambda_arn
+  count = local.region == "east" ? 1 : 0
+  rule  = aws_cloudwatch_event_rule.player_metadata_schedule[0].name
+  arn   = module.player_metadata_lambda[0].lambda_arn
 }
 
 resource "aws_lambda_permission" "allow_eventbridge_player_metadata" {
+  count         = local.region == "east" ? 1 : 0
   statement_id  = "AllowEventBridgeInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = module.player_metadata_lambda.lambda_arn
+  function_name = module.player_metadata_lambda[0].lambda_arn
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.player_metadata_schedule.arn
+  source_arn    = aws_cloudwatch_event_rule.player_metadata_schedule[0].arn
 }
 
 module "sleeper_refresh_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
-  function_name        = "fantasy-football-recap-sleeper-refresh-${var.environment}-${local.region}"
+  function_name        = "leagueql-sleeper-refresh-${var.environment}"
   function_description = "Lambda function to schedule Sleeper league refreshes"
-  role_arn             = var.sleeper_refresh_lambda_role_arn
+  role_arn             = local.sleeper_refresh_role_arn
   handler              = "handler.lambda_handler"
   memory_size          = 512
   timeout              = 60
   log_retention        = 7
-  s3_bucket            = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/sleeper_refresh-lambda.zip"
 
   environment_variables = {
-    DYNAMODB_TABLE_NAME   = "fantasy-football-recap-table-${var.environment}"
-    ONBOARDER_LAMBDA_NAME = "fantasy-football-recap-onboarder-${var.environment}-${local.region}"
+    DYNAMODB_TABLE_NAME   = "leagueql-table-${var.environment}"
+    ONBOARDER_LAMBDA_NAME = "leagueql-onboarder-${var.environment}-${local.region}"
   }
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
 }
 
 resource "aws_cloudwatch_event_rule" "sleeper_refresh_schedule" {
+  count               = local.region == "east" ? 1 : 0
   name                = "sleeper-refresh-schedule-${var.environment}-${local.region}"
   schedule_expression = "cron(0 13 ? * TUE *)"
-  state               = local.region == "east" ? "ENABLED" : "DISABLED"
+  state               = "ENABLED"
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
 }
 
 resource "aws_cloudwatch_event_target" "sleeper_refresh_target" {
-  rule = aws_cloudwatch_event_rule.sleeper_refresh_schedule.name
-  arn  = module.sleeper_refresh_lambda.lambda_arn
+  count = local.region == "east" ? 1 : 0
+  rule  = aws_cloudwatch_event_rule.sleeper_refresh_schedule[0].name
+  arn   = module.sleeper_refresh_lambda[0].lambda_arn
 }
 
 resource "aws_lambda_permission" "allow_eventbridge_sleeper_refresh" {
+  count         = local.region == "east" ? 1 : 0
   statement_id  = "AllowEventBridgeInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = module.sleeper_refresh_lambda.lambda_arn
+  function_name = module.sleeper_refresh_lambda[0].lambda_arn
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.sleeper_refresh_schedule.arn
+  source_arn    = aws_cloudwatch_event_rule.sleeper_refresh_schedule[0].arn
 }
 
 module "backend_api" {
   source = "../modules/api-gw"
 
-  api_name             = "fantasy-football-recap-api-${var.environment}-${local.region}"
+  api_name             = "leagueql-api-${var.environment}-${local.region}"
   api_description      = "API for fantasy football recap app"
   cors_allow_origins   = ["http://localhost:5173", "https://leagueql.com"]
   openapi_spec_path    = "${path.module}/../../docs/api/openapi_spec.yaml"
@@ -223,37 +242,39 @@ module "backend_api" {
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
 }
 
 resource "aws_sqs_queue" "sleeper_player_stats_dlq" {
+  count                     = local.region == "east" ? 1 : 0
   name                      = "sleeper-player-stats-processor-dlq-${var.environment}-${local.region}"
   message_retention_seconds = 1209600
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
 }
 
 resource "aws_sqs_queue" "sleeper_player_stats_queue" {
+  count                      = local.region == "east" ? 1 : 0
   name                       = "sleeper-player-stats-processor-${var.environment}-${local.region}"
   visibility_timeout_seconds = 120
   message_retention_seconds  = 86400
   receive_wait_time_seconds  = 20
   redrive_policy = jsonencode({
-    deadLetterTargetArn = aws_sqs_queue.sleeper_player_stats_dlq.arn
+    deadLetterTargetArn = aws_sqs_queue.sleeper_player_stats_dlq[0].arn
     maxReceiveCount     = 3
   })
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
@@ -261,25 +282,26 @@ resource "aws_sqs_queue" "sleeper_player_stats_queue" {
 
 module "sleeper_player_stats_orchestrator_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
-  function_name        = "fantasy-football-recap-slp-stats-orchestrator-${var.environment}-${local.region}"
+  function_name        = "leagueql-${var.environment}-sleeper-player-stats-orchestrator-east"
   function_description = "Reads active players from S3 and enqueues per-player stats fetch messages to SQS"
-  role_arn             = var.sleeper_player_stats_orchestrator_lambda_role_arn
+  role_arn             = local.sleeper_player_stats_orchestrator_role_arn
   handler              = "handler.lambda_handler"
   memory_size          = 512
   timeout              = 300
   log_retention        = 7
-  s3_bucket            = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/sleeper_player_stats_orchestrator-lambda.zip"
 
   environment_variables = {
-    S3_BUCKET_NAME = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
-    SQS_QUEUE_URL  = aws_sqs_queue.sleeper_player_stats_queue.url
+    S3_BUCKET_NAME = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
+    SQS_QUEUE_URL  = aws_sqs_queue.sleeper_player_stats_queue[0].url
   }
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
@@ -287,26 +309,27 @@ module "sleeper_player_stats_orchestrator_lambda" {
 
 module "sleeper_player_stats_processor_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
-  function_name                   = "fantasy-football-recap-slp-stats-processor-${var.environment}-${local.region}"
+  function_name                   = "leagueql-${var.environment}-sleeper-player-stats-processor-east"
   function_description            = "Fetches stats for one player per SQS message and writes to S3 staging"
-  role_arn                        = var.sleeper_player_stats_processor_lambda_role_arn
+  role_arn                        = local.sleeper_player_stats_processor_role_arn
   handler                         = "handler.lambda_handler"
   memory_size                     = 256
   timeout                         = 60
   log_retention                   = 7
-  reserved_concurrent_executions  = local.region == "east" ? 8 : -1
-  s3_bucket                       = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+  reserved_concurrent_executions  = 8
+  s3_bucket                       = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key                          = "lambda-code-artifacts/sleeper_player_stats_processor-lambda.zip"
 
   environment_variables = {
-    S3_BUCKET_NAME = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
-    SQS_QUEUE_URL  = aws_sqs_queue.sleeper_player_stats_queue.url
+    S3_BUCKET_NAME = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
+    SQS_QUEUE_URL  = aws_sqs_queue.sleeper_player_stats_queue[0].url
   }
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
@@ -314,35 +337,37 @@ module "sleeper_player_stats_processor_lambda" {
 
 module "sleeper_player_stats_aggregator_lambda" {
   source = "../modules/lambda"
+  count  = local.region == "east" ? 1 : 0
 
-  function_name        = "fantasy-football-recap-slp-stats-aggregator-${var.environment}-${local.region}"
+  function_name        = "leagueql-${var.environment}-sleeper-player-stats-aggregator-east"
   function_description = "Merges all staging player stats files into the final JSON and cleans up staging"
-  role_arn             = var.sleeper_player_stats_aggregator_lambda_role_arn
+  role_arn             = local.sleeper_player_stats_aggregator_role_arn
   handler              = "handler.lambda_handler"
   memory_size          = 1024
   timeout              = 300
   log_retention        = 7
-  s3_bucket            = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+  s3_bucket            = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   s3_key               = "lambda-code-artifacts/sleeper_player_stats_aggregator-lambda.zip"
 
   environment_variables = {
-    S3_BUCKET_NAME = "fantasy-football-recap-${var.environment}-bucket-${local.region}-${local.account_id}"
+    S3_BUCKET_NAME = "leagueql-${var.environment}-bucket-${local.region}-${local.account_id}"
   }
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
 }
 
 resource "aws_lambda_event_source_mapping" "sleeper_player_stats_processor_sqs" {
-  event_source_arn                   = aws_sqs_queue.sleeper_player_stats_queue.arn
-  function_name                      = module.sleeper_player_stats_processor_lambda.lambda_arn
+  count                              = local.region == "east" ? 1 : 0
+  event_source_arn                   = aws_sqs_queue.sleeper_player_stats_queue[0].arn
+  function_name                      = module.sleeper_player_stats_processor_lambda[0].lambda_arn
   batch_size                         = 1
   maximum_batching_window_in_seconds = 0
-  enabled                            = local.region == "east" ? true : false
+  enabled                            = true
 }
 
 resource "aws_cloudwatch_log_resource_policy" "apigateway_log_delivery" {
@@ -377,7 +402,7 @@ resource "aws_acm_certificate" "api_subdomain_cert" {
 
   tags = {
     environment = var.environment
-    project     = "fantasy-football-recap"
+    project     = "leagueql"
     component   = "api"
     managed-by  = "terraform"
   }
