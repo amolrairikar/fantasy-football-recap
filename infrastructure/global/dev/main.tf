@@ -130,25 +130,24 @@ module "s3-bidirectional-replication" {
   ]
 
   primary_event_notifications = [
-    # {
-    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-processor-${var.environment}"
-    #   events              = ["s3:ObjectCreated:*"]
-    #   filter_prefix       = "raw-api-data/"
-    #   filter_suffix       = "manifest.json"
-    # },
-    # TODO: uncomment once sleeper-player-stats lambdas are deployed
-    # {
-    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-sleeper-player-stats-orchestrator-${var.environment}"
-    #   events              = ["s3:ObjectCreated:Put"]
-    #   filter_prefix       = "player-metadata/"
-    #   filter_suffix       = "sleeper_nfl_players.json"
-    # },
-    # {
-    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-sleeper-player-stats-aggregator-${var.environment}"
-    #   events              = ["s3:ObjectCreated:Put"]
-    #   filter_prefix       = "player-stats/staging/"
-    #   filter_suffix       = "complete.json"
-    # }
+    {
+      lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-processor-${var.environment}"
+      events              = ["s3:ObjectCreated:*"]
+      filter_prefix       = "raw-api-data/"
+      filter_suffix       = "manifest.json"
+    },
+    {
+      lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-sleeper-player-stats-orchestrator-${var.environment}"
+      events              = ["s3:ObjectCreated:Put"]
+      filter_prefix       = "player-metadata/"
+      filter_suffix       = "sleeper_nfl_players.json"
+    },
+    {
+      lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-sleeper-player-stats-aggregator-${var.environment}"
+      events              = ["s3:ObjectCreated:Put"]
+      filter_prefix       = "player-stats/staging/"
+      filter_suffix       = "complete.json"
+    }
   ]
 
   tags = {
