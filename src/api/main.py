@@ -45,7 +45,7 @@ class OnboardingPayload(BaseModel):
     leagueId: str = Field(max_length=100)
     platform: str = Field(max_length=100)
     season: Optional[str] = Field(default=None, max_length=100)
-    s2: Optional[str] = Field(default=None, max_length=100)
+    s2: Optional[str] = Field(default=None)
     swid: Optional[str] = Field(default=None, max_length=100)
 
 
