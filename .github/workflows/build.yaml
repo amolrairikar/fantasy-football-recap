@@ -113,7 +113,10 @@ jobs:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           GITHUB_EVENT_BEFORE: ${{ github.event.before }}
-        run: bash deployment_scripts/check_changed_files.sh "src/**"
+        run: |
+          # TODO: Remove this temporary workaround
+          echo "any_changed=true" >> $GITHUB_OUTPUT
+          # bash deployment_scripts/check_changed_files.sh "src/**"
 
       - name: Package and upload Lambda functions
         if: steps.changed.outputs.any_changed == 'true'
