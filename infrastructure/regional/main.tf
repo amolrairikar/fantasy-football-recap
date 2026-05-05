@@ -284,7 +284,7 @@ module "sleeper_player_stats_orchestrator_lambda" {
   source = "../modules/lambda"
   count  = local.region == "east" ? 1 : 0
 
-  function_name        = "leagueql-${var.environment}-sleeper-player-stats-orchestrator-east"
+  function_name        = "leagueql-sleeper-player-stats-orchestrator-${var.environment}"
   function_description = "Reads active players from S3 and enqueues per-player stats fetch messages to SQS"
   role_arn             = local.sleeper_player_stats_orchestrator_role_arn
   handler              = "handler.lambda_handler"
@@ -311,7 +311,7 @@ module "sleeper_player_stats_processor_lambda" {
   source = "../modules/lambda"
   count  = local.region == "east" ? 1 : 0
 
-  function_name                   = "leagueql-${var.environment}-sleeper-player-stats-processor-east"
+  function_name                   = "leagueql-sleeper-player-stats-processor-${var.environment}"
   function_description            = "Fetches stats for one player per SQS message and writes to S3 staging"
   role_arn                        = local.sleeper_player_stats_processor_role_arn
   handler                         = "handler.lambda_handler"
@@ -339,7 +339,7 @@ module "sleeper_player_stats_aggregator_lambda" {
   source = "../modules/lambda"
   count  = local.region == "east" ? 1 : 0
 
-  function_name        = "leagueql-${var.environment}-sleeper-player-stats-aggregator-east"
+  function_name        = "leagueql-sleeper-player-stats-aggregator-${var.environment}"
   function_description = "Merges all staging player stats files into the final JSON and cleans up staging"
   role_arn             = local.sleeper_player_stats_aggregator_role_arn
   handler              = "handler.lambda_handler"
