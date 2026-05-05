@@ -130,25 +130,24 @@ module "s3-bidirectional-replication" {
   ]
 
   primary_event_notifications = [
-    # {
-    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-processor-${var.environment}-east"
-    #   events              = ["s3:ObjectCreated:*"]
-    #   filter_prefix       = "raw-api-data/"
-    #   filter_suffix       = "manifest.json"
-    # },
-    # TODO: uncomment once sleeper-player-stats lambdas are deployed
-    # {
-    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-slp-stats-orchestrator-${var.environment}-east"
-    #   events              = ["s3:ObjectCreated:Put"]
-    #   filter_prefix       = "player-metadata/"
-    #   filter_suffix       = "sleeper_nfl_players.json"
-    # },
-    # {
-    #   lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-slp-stats-aggregator-${var.environment}-east"
-    #   events              = ["s3:ObjectCreated:Put"]
-    #   filter_prefix       = "player-stats/staging/"
-    #   filter_suffix       = "complete.json"
-    # }
+    {
+      lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-processor-${var.environment}"
+      events              = ["s3:ObjectCreated:*"]
+      filter_prefix       = "raw-api-data/"
+      filter_suffix       = "manifest.json"
+    },
+    {
+      lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-sleeper-player-stats-orchestrator-${var.environment}"
+      events              = ["s3:ObjectCreated:Put"]
+      filter_prefix       = "player-metadata/"
+      filter_suffix       = "sleeper_nfl_players.json"
+    },
+    {
+      lambda_function_arn = "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-sleeper-player-stats-aggregator-${var.environment}"
+      events              = ["s3:ObjectCreated:Put"]
+      filter_prefix       = "player-stats/staging/"
+      filter_suffix       = "complete.json"
+    }
   ]
 
   tags = {
@@ -196,7 +195,7 @@ module "onboarding-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-onboarder:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-onboarder-${var.environment}:*"
         ]
       },
       {
@@ -291,7 +290,7 @@ module "processing-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-onboarding-processor:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-processor-${var.environment}:*"
         ]
       },
       {
@@ -397,7 +396,7 @@ module "player-metadata-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-sleeper-player-metadata-fetcher:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-sleeper-player-metadata-${var.environment}:*"
         ]
       },
       {
@@ -492,7 +491,7 @@ module "api-lambda-role" {
           "lambda:InvokeFunction"
         ]
         Resource = [
-          "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-${var.environment}-onboarder-east"
+          "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-onboarder-${var.environment}"
         ]
       },
       {
@@ -618,7 +617,7 @@ module "sleeper-player-stats-orchestrator-lambda-role" {
           "logs:PutLogEvents"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-sleeper-player-stats-orchestrator:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-sleeper-player-stats-orchestrator-${var.environment}:*"
         ]
       },
       {
@@ -691,7 +690,7 @@ module "sleeper-player-stats-processor-lambda-role" {
           "logs:PutLogEvents"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-sleeper-player-stats-processor:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-sleeper-player-stats-processor-${var.environment}:*"
         ]
       },
       {
@@ -775,7 +774,7 @@ module "sleeper-player-stats-aggregator-lambda-role" {
           "logs:PutLogEvents"
         ]
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-sleeper-player-stats-aggregator:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-sleeper-player-stats-aggregator-${var.environment}:*"
         ]
       },
       {
@@ -857,7 +856,7 @@ module "sleeper-refresh-lambda-role" {
           "logs:PutLogEvents"
         ],
         Resource = [
-          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-${var.environment}-sleeper-league-refresh:*"
+          "arn:aws:logs:us-east-1:${var.account_id}:log-group:/aws/lambda/leagueql-sleeper-refresh-${var.environment}:*"
         ]
       },
       {
@@ -878,7 +877,7 @@ module "sleeper-refresh-lambda-role" {
           "lambda:InvokeFunction"
         ]
         Resource = [
-          "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-${var.environment}-onboarder"
+          "arn:aws:lambda:us-east-1:${var.account_id}:function:leagueql-onboarder-${var.environment}-east"
         ]
       }
     ]
