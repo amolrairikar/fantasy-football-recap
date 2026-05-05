@@ -8,20 +8,6 @@ variable "aws_region" {
   type        = string
 }
 
-variable "onboarder_lambda_role_arn" {
-  description = "IAM role ARN for the onboarder Lambda function execution role"
-  type        = string
-}
-
-variable "processor_lambda_role_arn" {
-  description = "IAM role ARN for the processor Lambda function execution role"
-  type        = string
-}
-
-variable "api_lambda_role_arn" {
-  description = "IAM role ARN for the API Lambda function execution role"
-  type        = string
-}
 
 variable "clerk_issuer_url" {
   description = "Clerk Frontend API URL, used as JWT issuer (e.g. https://xxx.clerk.accounts.dev)"
@@ -30,30 +16,5 @@ variable "clerk_issuer_url" {
 
 variable "clerk_jwt_audience" {
   description = "Audience value that must match the `aud` claim in Clerk session tokens"
-  type        = string
-}
-
-variable "player_metadata_lambda_role_arn" {
-  description = "IAM role ARN for the player metadata Lambda function execution role"
-  type        = string
-}
-
-variable "sleeper_refresh_lambda_role_arn" {
-  description = "IAM role ARN for the Sleeper refresh Lambda function execution role"
-  type        = string
-}
-
-variable "sleeper_player_stats_orchestrator_lambda_role_arn" {
-  description = "IAM role ARN for the Sleeper player stats orchestrator Lambda function execution role"
-  type        = string
-}
-
-variable "sleeper_player_stats_processor_lambda_role_arn" {
-  description = "IAM role ARN for the Sleeper player stats processor Lambda function execution role"
-  type        = string
-}
-
-variable "sleeper_player_stats_aggregator_lambda_role_arn" {
-  description = "IAM role ARN for the Sleeper player stats aggregator Lambda function execution role"
   type        = string
 }

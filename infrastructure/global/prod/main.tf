@@ -161,7 +161,7 @@ module "s3-bidirectional-replication" {
 
 module "onboarding-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "leagueql-onboarder-role"
+  role_name = "leagueql-${var.environment}-onboarder-role"
   role_description = "Execution role for onboarding lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -256,7 +256,7 @@ module "onboarding-lambda-role" {
 
 module "processing-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "leagueql-onboarding-processor-role"
+  role_name = "leagueql-${var.environment}-onboarding-processor-role"
   role_description = "Execution role for data processing lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -362,7 +362,7 @@ module "processing-lambda-role" {
 
 module "player-metadata-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "leagueql-sleeper-player-metadata-fetcher-role"
+  role_name = "leagueql-${var.environment}-sleeper-player-metadata-fetcher-role"
   role_description = "Execution role for Sleeper player data fetcher lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -583,7 +583,7 @@ module "api-gateway-role" {
 
 module "sleeper-player-stats-orchestrator-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "leagueql-sleeper-player-stats-orchestrator-role"
+  role_name = "leagueql-${var.environment}-sleeper-player-stats-orchestrator-role"
   role_description = "Execution role for Sleeper player stats orchestrator lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -656,7 +656,7 @@ module "sleeper-player-stats-orchestrator-lambda-role" {
 
 module "sleeper-player-stats-processor-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "leagueql-sleeper-player-stats-processor-role"
+  role_name = "leagueql-${var.environment}-sleeper-player-stats-processor-role"
   role_description = "Execution role for Sleeper player stats processor lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -740,7 +740,7 @@ module "sleeper-player-stats-processor-lambda-role" {
 
 module "sleeper-player-stats-aggregator-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "leagueql-sleeper-player-stats-aggregator-role"
+  role_name = "leagueql-${var.environment}-sleeper-player-stats-aggregator-role"
   role_description = "Execution role for Sleeper player stats aggregator lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"
@@ -822,7 +822,7 @@ module "sleeper-player-stats-aggregator-lambda-role" {
 
 module "sleeper-refresh-lambda-role" {
   source = "../../modules/iam-role"
-  role_name = "leagueql-sleeper-league-refresh-role"
+  role_name = "leagueql-${var.environment}-sleeper-league-refresh-role"
   role_description = "Execution role for Sleeper refresh lambda."
   trust_policy_json = jsonencode({
     Version = "2012-10-17"

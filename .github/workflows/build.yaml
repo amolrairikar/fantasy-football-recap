@@ -178,14 +178,6 @@ jobs:
             -auto-approve \
             -var="environment=${{ env.ENVIRONMENT }}" \
             -var="aws_region=${{ matrix.region }}" \
-            -var="onboarder_lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/fantasy-football-recap-onboarding-lambda-${{ env.ENVIRONMENT }}-role" \
-            -var="processor_lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/fantasy-football-recap-processing-lambda-${{ env.ENVIRONMENT }}-role" \
-            -var="api_lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/fantasy-football-recap-api-lambda-${{ env.ENVIRONMENT }}-role" \
-            -var="player_metadata_lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/fantasy-football-recap-player-metadata-lambda-${{ env.ENVIRONMENT }}-role" \
-            -var="sleeper_refresh_lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/fantasy-football-recap-sleeper-refresh-lambda-${{ env.ENVIRONMENT }}-role" \
-            -var="sleeper_player_stats_orchestrator_lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/fantasy-football-recap-slp-stats-orchestrator-lambda-${{ env.ENVIRONMENT }}-role" \
-            -var="sleeper_player_stats_processor_lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/fantasy-football-recap-slp-stats-processor-lambda-${{ env.ENVIRONMENT }}-role" \
-            -var="sleeper_player_stats_aggregator_lambda_role_arn=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/fantasy-football-recap-slp-stats-aggregator-lambda-${{ env.ENVIRONMENT }}-role" \
             -var="clerk_issuer_url=${{ env.CLERK_ISSUER_URL }}" \
             -var="clerk_jwt_audience=${{ secrets.CLERK_JWT_AUDIENCE }}"
 

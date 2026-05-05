@@ -16,6 +16,16 @@ data "aws_caller_identity" "current" {}
 locals {
   region     = element(split("-", var.aws_region), 1)
   account_id = data.aws_caller_identity.current.account_id
+  
+  # Role ARNs constructed from global role names
+  onboarder_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-onboarder-role"
+  processor_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-onboarding-processor-role"
+  api_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-api-role"
+  player_metadata_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-sleeper-player-metadata-fetcher-role"
+  sleeper_refresh_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-sleeper-league-refresh-role"
+  sleeper_player_stats_orchestrator_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-sleeper-player-stats-orchestrator-role"
+  sleeper_player_stats_processor_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-sleeper-player-stats-processor-role"
+  sleeper_player_stats_aggregator_role_arn = "arn:aws:iam::${local.account_id}:role/leagueql-${var.environment}-sleeper-player-stats-aggregator-role"
 }
 
 module "onboarder_lambda" {
@@ -24,7 +34,7 @@ module "onboarder_lambda" {
 
   function_name        = "leagueql-onboarder-${var.environment}"
   function_description = "Lambda function for onboarding a fantasy football league"
-  role_arn             =  var.onboarder_lambda_role_arn
+  role_arn             = local.onboarder_role_arn
   handler              = "handler.lambda_handler"
   memory_size          = 2048
   timeout              = 30
@@ -51,7 +61,7 @@ module "processor_lambda" {
 
   function_name        = "leagueql-processor-${var.environment}"
   function_description = "Lambda function for processing raw fantasy football league data"
-  role_arn             =  var.processor_lambda_role_arn
+  role_arn             = local.processor_role_arn
   handler              = "handler.lambda_handler"
   memory_size          = 2048
   timeout              = 120
@@ -77,7 +87,7 @@ module "api_lambda" {
 
   function_name        = "leagueql-api-${var.environment}-${local.region}"
   function_description = "Lambda function containing API handler for fantasy football recap app"
-  role_arn             =  var.api_lambda_role_arn
+  role_arn             = local.api_role_arn
   handler              = "main.handler"
   memory_size          = 1024
   timeout              = 15
@@ -105,7 +115,7 @@ module "player_metadata_lambda" {
 
   function_name        = "leagueql-sleeper-player-metadata-${var.environment}"
   function_description = "Fetches and caches Sleeper NFL player metadata to S3"
-  role_arn             = var.player_metadata_lambda_role_arn
+  role_arn             = local.player_metadata_role_arn
   handler              = "handler.lambda_handler"
   memory_size          = 512
   timeout              = 30
@@ -160,7 +170,7 @@ module "sleeper_refresh_lambda" {
 
   function_name        = "leagueql-sleeper-refresh-${var.environment}"
   function_description = "Lambda function to schedule Sleeper league refreshes"
-  role_arn             = var.sleeper_refresh_lambda_role_arn
+  role_arn             = local.sleeper_refresh_role_arn
   handler              = "handler.lambda_handler"
   memory_size          = 512
   timeout              = 60
@@ -276,7 +286,7 @@ module "sleeper_player_stats_orchestrator_lambda" {
 
   function_name        = "leagueql-${var.environment}-sleeper-player-stats-orchestrator-east"
   function_description = "Reads active players from S3 and enqueues per-player stats fetch messages to SQS"
-  role_arn             = var.sleeper_player_stats_orchestrator_lambda_role_arn
+  role_arn             = local.sleeper_player_stats_orchestrator_role_arn
   handler              = "handler.lambda_handler"
   memory_size          = 512
   timeout              = 300
@@ -303,7 +313,7 @@ module "sleeper_player_stats_processor_lambda" {
 
   function_name                   = "leagueql-${var.environment}-sleeper-player-stats-processor-east"
   function_description            = "Fetches stats for one player per SQS message and writes to S3 staging"
-  role_arn                        = var.sleeper_player_stats_processor_lambda_role_arn
+  role_arn                        = local.sleeper_player_stats_processor_role_arn
   handler                         = "handler.lambda_handler"
   memory_size                     = 256
   timeout                         = 60
@@ -331,7 +341,7 @@ module "sleeper_player_stats_aggregator_lambda" {
 
   function_name        = "leagueql-${var.environment}-sleeper-player-stats-aggregator-east"
   function_description = "Merges all staging player stats files into the final JSON and cleans up staging"
-  role_arn             = var.sleeper_player_stats_aggregator_lambda_role_arn
+  role_arn             = local.sleeper_player_stats_aggregator_role_arn
   handler              = "handler.lambda_handler"
   memory_size          = 1024
   timeout              = 300

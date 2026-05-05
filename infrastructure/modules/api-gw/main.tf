@@ -66,6 +66,10 @@ resource "aws_apigatewayv2_authorizer" "clerk" {
     issuer   = var.clerk_issuer_url
     audience = [var.clerk_jwt_audience]
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_lambda_permission" "api_gateway" {
