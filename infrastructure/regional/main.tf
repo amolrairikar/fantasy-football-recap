@@ -180,7 +180,7 @@ module "sleeper_refresh_lambda" {
 
   environment_variables = {
     DYNAMODB_TABLE_NAME   = "leagueql-table-${var.environment}"
-    ONBOARDER_LAMBDA_NAME = "leagueql-onboarder-${var.environment}-${local.region}"
+    ONBOARDER_LAMBDA_NAME = "leagueql-onboarder-${var.environment}"
   }
 
   tags = {
